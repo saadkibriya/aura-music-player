@@ -19,7 +19,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Room schema export dir
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
             arg("room.incremental",    "true")
@@ -58,8 +57,8 @@ android {
     }
 
     buildFeatures {
-        compose      = true
-        buildConfig  = true
+        compose     = true
+        buildConfig = true
     }
 
     packaging {
@@ -83,7 +82,7 @@ dependencies {
 
     // ── Hilt ────────────────────────────────────────────────
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    ksp(libs.hilt.android.compiler)          // was: libs.hilt.compiler
     implementation(libs.hilt.navigation.compose)
 
     // ── Room ────────────────────────────────────────────────
@@ -100,25 +99,24 @@ dependencies {
     implementation(libs.coil.compose)
 
     // ── Palette ─────────────────────────────────────────────
-    implementation(libs.palette)
+    implementation(libs.palette.ktx)         // was: libs.palette
 
     // ── WorkManager + Hilt-Work ─────────────────────────────
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
-    // hilt.compiler (already declared above) also handles hilt-work KSP
+    ksp(libs.hilt.compiler.androidx)         // needed for hilt-work annotation processing
 
     // ── Navigation ──────────────────────────────────────────
     implementation(libs.navigation.compose)
 
     // ── Coroutines ──────────────────────────────────────────
-    implementation(libs.coroutines.core)
-    implementation(libs.coroutines.android)
+    implementation(libs.kotlinx.coroutines.android)   // was: libs.coroutines.core + libs.coroutines.android
+                                                       // Note: core is a transitive dep of android variant
 
     // ── Splash Screen ───────────────────────────────────────
-    implementation(libs.splash.screen)
+    implementation(libs.core.splashscreen)   // was: libs.splash.screen
 
-    // ── Core / Lifecycle ────────────────────────────────────
-    implementation(libs.core.ktx)
+    // ── Lifecycle ────────────────────────────────────────────
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.viewmodel.compose)
 }
