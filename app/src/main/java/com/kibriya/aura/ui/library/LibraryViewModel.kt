@@ -1,13 +1,13 @@
 /*
  * MIT License
- * Copyright (c) 2024 Saad Kibriya
+ * Copyright (c) 2024 Md Golam Kibriya
  */
 
 package com.kibriya.aura.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kibriya.aura.data.preferences.UserPreferences
+import com.kibriya.aura.data.local.preferences.UserPreferences
 import com.kibriya.aura.domain.model.Song
 import com.kibriya.aura.domain.repository.SongRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,25 +25,13 @@ class LibraryViewModel @Inject constructor(
 ) : ViewModel() {
 
     val songs: StateFlow<List<Song>> = songRepository.getAllSongs()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val albums: StateFlow<List<Song>> = songRepository.getAlbums()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val artists: StateFlow<List<String>> = songRepository.getArtists()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val selectedTab: MutableStateFlow<Int> = MutableStateFlow(0)
 
