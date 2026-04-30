@@ -80,7 +80,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 
-implementation(libs.datastore.preferences)
+implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // ── Hilt ────────────────────────────────────────────────
     implementation(libs.hilt.android)
