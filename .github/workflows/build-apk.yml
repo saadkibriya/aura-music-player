@@ -25,7 +25,7 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build debug APK
-        run: gradle assembleDebug
+        run: gradle assembleDebug --stacktrace 2>&1 | tee build.log; grep -A5 "error:" build.log | head -50
 
       - name: Find APK
         run: find . -name "*.apk" -type f
