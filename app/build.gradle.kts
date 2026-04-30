@@ -80,6 +80,8 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 
+implementation(libs.datastore.preferences)
+
     // ── Hilt ────────────────────────────────────────────────
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)          // was: libs.hilt.compiler
