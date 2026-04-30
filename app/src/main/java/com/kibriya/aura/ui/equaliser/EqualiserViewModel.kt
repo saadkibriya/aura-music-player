@@ -1,6 +1,6 @@
 /*
  * MIT License
- * Copyright (c) 2024 Saad Kibriya
+ * Copyright (c) 2024 Md Golam Kibriya
  */
 
 package com.kibriya.aura.ui.equaliser
@@ -8,7 +8,7 @@ package com.kibriya.aura.ui.equaliser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kibriya.aura.audio.AuraAudioProcessor
-import com.kibriya.aura.data.preferences.UserPreferences
+import com.kibriya.aura.data.local.preferences.UserPreferences
 import com.kibriya.aura.domain.model.EqPreset
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,41 +24,22 @@ class EqualiserViewModel @Inject constructor(
 ) : ViewModel() {
 
     val bandGains: StateFlow<List<Float>> = userPreferences.bandGains
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = List(10) { 0f }
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), List(10) { 0f })
 
     val isEqEnabled: StateFlow<Boolean> = userPreferences.isEqEnabled
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = false
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val crossfadeDuration: StateFlow<Int> = userPreferences.crossfadeDuration
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = 0
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val replayGainEnabled: StateFlow<Boolean> = userPreferences.replayGainEnabled
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = false
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun setBandGain(band: Int, gain: Float) {
         viewModelScope.launch {
             val current = bandGains.value.toMutableList()
-            if (band in current.indices) {
-                current[band] = gain
-            }
-            val newList = current.toList()
-            userPreferences.setBandGains(newList)
+            if (band in current.indices) current[band] = gain
+            userPreferences.setBandGains(current.toList())
             audioProcessor.setBandGain(band, gain)
         }
     }
@@ -72,9 +53,7 @@ class EqualiserViewModel @Inject constructor(
     }
 
     fun setCrossfade(s: Int) {
-        viewModelScope.launch {
-            userPreferences.setCrossfadeDuration(s)
-        }
+        viewModelScope.launch { userPreferences.setCrossfadeDuration(s) }
     }
 
     fun toggleReplayGain() {
