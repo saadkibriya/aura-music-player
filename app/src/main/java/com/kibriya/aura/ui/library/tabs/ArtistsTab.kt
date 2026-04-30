@@ -12,15 +12,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.kibriya.aura.ui.library.LibraryViewModel
-
-private val ArtistAvatarColor = Color(0xFF7C4DFF)
 
 @Composable
 fun ArtistsTab(
@@ -29,10 +29,14 @@ fun ArtistsTab(
 ) {
     val artists by viewModel.artists.collectAsState()
 
-    LazyColumn(
-        contentPadding = PaddingValues(vertical = 8.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
+    if (artists.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No artists found", color = Color.White.copy(alpha = 0.6f))
+        }
+        return
+    }
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(artists) { artistName ->
             Row(
                 modifier = Modifier
@@ -45,19 +49,20 @@ fun ArtistsTab(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(ArtistAvatarColor),
+                        .background(Color(0xFF8B5CF6)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = artistName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                        text = artistName.firstOrNull()?.uppercase() ?: "?",
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White
                     )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(
                     text = artistName,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
                 )
             }
         }
