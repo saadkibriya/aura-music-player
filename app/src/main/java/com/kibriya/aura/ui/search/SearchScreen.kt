@@ -82,48 +82,6 @@ data class SearchResults(
 // ViewModel
 // ─────────────────────────────────────────────────────────────────────────────
 
-@HiltViewModel
-class SearchViewModel @Inject constructor(
-    private val songRepository: SongRepository
-) : ViewModel() {
-
-    val searchQuery: MutableStateFlow<String> = MutableStateFlow("")
-
-    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    val results: StateFlow<SearchResults> = searchQuery
-        .debounce(300L)
-        .flatMapLatest { query ->
-            if (query.isBlank()) {
-                flowOf(SearchResults())
-            } else {
-                combine(
-                    songRepository.searchSongs(query),
-                    songRepository.searchAlbums(query),
-                    songRepository.searchArtists(query)
-                ) { songs, albums, artists ->
-                    SearchResults(
-                        songs = songs,
-                        albums = albums,
-                        artists = artists
-                    )
-                }
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = SearchResults()
-        )
-
-    fun onQueryChange(newQuery: String) {
-        searchQuery.value = newQuery
-    }
-
-    fun clearQuery() {
-        searchQuery.value = ""
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // SearchScreen — root composable
 // ─────────────────────────────────────────────────────────────────────────────
