@@ -1,76 +1,76 @@
-// MIT License — Copyright (c) 2025 Md Golam Kibriya
+// MIT License
+//
+// Copyright (c) 2024 Saad Kibriya
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package com.kibriya.aura.ui.playlists
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kibriya.aura.data.db.dao.PlaylistDao
-import com.kibriya.aura.data.db.dao.SongDao
-import com.kibriya.aura.data.db.entity.PlaylistEntity
-import com.kibriya.aura.data.db.entity.PlaylistSongCrossRef
+import com.kibriya.aura.data.local.dao.PlaylistDao
+import com.kibriya.aura.data.local.entities.PlaylistEntity
+import com.kibriya.aura.domain.model.Song
+import com.kibriya.aura.domain.repository.SongRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class SmartPlaylist(
-    val id: String,
-    val name: String,
-    val icon: String,        // Material icon name
-    val songCount: Int,
-    val songIds: List<Long>
-)
-
 @HiltViewModel
 class PlaylistsViewModel @Inject constructor(
-    private val songDao: SongDao,
+    private val songRepository: SongRepository,
     private val playlistDao: PlaylistDao
 ) : ViewModel() {
 
-    val smartPlaylists: StateFlow<List<SmartPlaylist>> = combine(
-        songDao.getMostPlayed(25),
-        songDao.getRecentlyAdded(25),
-        songDao.getTopRated(25),
-        songDao.getFavorites()
-    ) { mostPlayed, recentlyAdded, topRated, favorites ->
-        listOf(
-            SmartPlaylist(
-                id = "smart_most_played",
-                name = "Most Played",
-                icon = "equalizer",
-                songCount = mostPlayed.size,
-                songIds = mostPlayed.map { it.id }
-            ),
-            SmartPlaylist(
-                id = "smart_recently_added",
-                name = "Recently Added",
-                icon = "schedule",
-                songCount = recentlyAdded.size,
-                songIds = recentlyAdded.map { it.id }
-            ),
-            SmartPlaylist(
-                id = "smart_top_rated",
-                name = "Top Rated",
-                icon = "star",
-                songCount = topRated.size,
-                songIds = topRated.map { it.id }
-            ),
-            SmartPlaylist(
-                id = "smart_favorites",
-                name = "Favorites",
-                icon = "favorite",
-                songCount = favorites.size,
-                songIds = favorites.map { it.id }
-            )
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _mostPlayed = MutableStateFlow<List<Song>>(emptyList())
+    val mostPlayed: StateFlow<List<Song>> = _mostPlayed.asStateFlow()
 
-    val userPlaylists: StateFlow<List<PlaylistEntity>> =
-        playlistDao.getAllPlaylists()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _recentlyAdded = MutableStateFlow<List<Song>>(emptyList())
+    val recentlyAdded: StateFlow<List<Song>> = _recentlyAdded.asStateFlow()
+
+    private val _favorites = MutableStateFlow<List<Song>>(emptyList())
+    val favorites: StateFlow<List<Song>> = _favorites.asStateFlow()
+
+    private val _userPlaylists = MutableStateFlow<List<PlaylistEntity>>(emptyList())
+    val userPlaylists: StateFlow<List<PlaylistEntity>> = _userPlaylists.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            songRepository.getMostPlayed().collect { _mostPlayed.value = it }
+        }
+        viewModelScope.launch {
+            songRepository.getRecentlyAdded().collect { _recentlyAdded.value = it }
+        }
+        viewModelScope.launch {
+            songRepository.getFavorites().collect { _favorites.value = it }
+        }
+        viewModelScope.launch {
+            playlistDao.getAllPlaylists().collect { _userPlaylists.value = it }
+        }
+    }
 
     fun createPlaylist(name: String) {
         viewModelScope.launch {
-            playlistDao.insertPlaylist(PlaylistEntity(name = name, createdAt = System.currentTimeMillis()))
+            playlistDao.insertPlaylist(PlaylistEntity(name = name))
         }
     }
 
@@ -82,13 +82,7 @@ class PlaylistsViewModel @Inject constructor(
 
     fun addSongToPlaylist(playlistId: Long, songId: Long) {
         viewModelScope.launch {
-            playlistDao.addSongToPlaylist(PlaylistSongCrossRef(playlistId = playlistId, songId = songId))
-        }
-    }
-
-    fun removeSongFromPlaylist(playlistId: Long, songId: Long) {
-        viewModelScope.launch {
-            playlistDao.removeSongFromPlaylist(playlistId, songId)
+            playlistDao.addSongToPlaylist(playlistId, songId)
         }
     }
 }
