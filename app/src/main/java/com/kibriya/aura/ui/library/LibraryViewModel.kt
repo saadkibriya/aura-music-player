@@ -1,36 +1,20 @@
-// MIT License
-//
-// Copyright (c) 2024 Saad Kibriya
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * MIT License
+ * Copyright (c) 2024 Saad Kibriya
+ */
 
 package com.kibriya.aura.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kibriya.aura.data.local.preferences.UserPreferences
+import com.kibriya.aura.data.preferences.UserPreferences
 import com.kibriya.aura.domain.model.Song
 import com.kibriya.aura.domain.repository.SongRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -40,51 +24,50 @@ class LibraryViewModel @Inject constructor(
     private val userPreferences: UserPreferences
 ) : ViewModel() {
 
-    private val _songs = MutableStateFlow<List<Song>>(emptyList())
-    val songs: StateFlow<List<Song>> = _songs.asStateFlow()
+    val songs: StateFlow<List<Song>> = songRepository.getAllSongs()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
-    private val _albums = MutableStateFlow<List<Song>>(emptyList())
-    val albums: StateFlow<List<Song>> = _albums.asStateFlow()
+    val albums: StateFlow<List<Song>> = songRepository.getAlbums()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
-    private val _artists = MutableStateFlow<List<String>>(emptyList())
-    val artists: StateFlow<List<String>> = _artists.asStateFlow()
+    val artists: StateFlow<List<String>> = songRepository.getArtists()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
-    val selectedTab = MutableStateFlow(0)
+    val selectedTab: MutableStateFlow<Int> = MutableStateFlow(0)
 
-    val searchQuery = MutableStateFlow("")
-
-    private val _isScanning = MutableStateFlow(false)
-    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+    val isScanning: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     init {
         viewModelScope.launch {
-            songRepository.getAllSongs().collect { songList ->
-                _songs.value = songList
-                if (songList.isEmpty()) {
-                    triggerScan()
-                }
-            }
-        }
-        viewModelScope.launch {
-            songRepository.getAlbums().collect { albumList ->
-                _albums.value = albumList
-            }
-        }
-        viewModelScope.launch {
-            songRepository.getArtists().collect { artistList ->
-                _artists.value = artistList
-            }
-        }
-        viewModelScope.launch {
-            songRepository.isScanning().collect { scanning ->
-                _isScanning.value = scanning
+            if (songs.value.isEmpty()) {
+                isScanning.value = true
+                songRepository.triggerScan()
+                isScanning.value = false
             }
         }
     }
 
-    private fun triggerScan() {
+    fun selectTab(index: Int) {
+        selectedTab.value = index
+    }
+
+    fun refreshLibrary() {
         viewModelScope.launch {
+            isScanning.value = true
             songRepository.triggerScan()
+            isScanning.value = false
         }
     }
 }
