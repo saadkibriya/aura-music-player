@@ -57,7 +57,7 @@ import androidx.navigation.NavController
 import com.kibriya.aura.data.model.Album
 import com.kibriya.aura.data.model.Artist
 import com.kibriya.aura.data.model.Song
-import com.kibriya.aura.data.repository.SongRepository
+import com.kibriya.aura.domain.repository.SongRepository
 import com.kibriya.aura.ui.theme.AuraViolet
 import com.kibriya.aura.ui.theme.glassBackground
 import dagger.hilt.android.lifecycle.HiltViewModel
