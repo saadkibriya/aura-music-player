@@ -1,5 +1,5 @@
 // MIT License
-// Copyright (c) 2024 Project Aura
+// Copyright (c) 2024 Md Golam Kibriya
 
 package com.kibriya.aura.di
 
@@ -40,9 +40,5 @@ abstract class AppModule {
             PreferenceDataStoreFactory.create {
                 context.preferencesDataStoreFile("aura_prefs")
             }
-
-        @Provides
-        @Singleton
-        fun provideContext(@ApplicationContext context: Context): Context = context
     }
 }
