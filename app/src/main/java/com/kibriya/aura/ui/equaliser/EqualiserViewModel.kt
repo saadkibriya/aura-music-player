@@ -2,7 +2,6 @@
  * MIT License
  * Copyright (c) 2024 Md Golam Kibriya
  */
-
 package com.kibriya.aura.ui.equaliser
 
 import androidx.lifecycle.ViewModel
@@ -24,7 +23,7 @@ class EqualiserViewModel @Inject constructor(
 ) : ViewModel() {
 
     val bandGains: StateFlow<List<Float>> = userPreferences.bandGains
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), List(10) { 0f })
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val isEqEnabled: StateFlow<Boolean> = userPreferences.isEqEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -38,29 +37,32 @@ class EqualiserViewModel @Inject constructor(
     fun setBandGain(band: Int, gain: Float) {
         viewModelScope.launch {
             val current = bandGains.value.toMutableList()
-            if (band in current.indices) current[band] = gain
-            userPreferences.setBandGains(current.toList())
+            if (band < current.size) {
+                current[band] = gain
+            } else {
+                while (current.size <= band) current.add(0f)
+                current[band] = gain
+            }
+            userPreferences.setBandGains(current)
             audioProcessor.setBandGain(band, gain)
         }
     }
 
     fun toggleEq() {
         viewModelScope.launch {
-            val current = isEqEnabled.value
-            userPreferences.setEqEnabled(!current)
-            audioProcessor.setEqEnabled(!current)
+            userPreferences.setEqEnabled(!isEqEnabled.value)
         }
     }
 
-    fun setCrossfade(s: Int) {
-        viewModelScope.launch { userPreferences.setCrossfadeDuration(s) }
+    fun setCrossfade(seconds: Int) {
+        viewModelScope.launch {
+            userPreferences.setCrossfadeDuration(seconds)
+        }
     }
 
     fun toggleReplayGain() {
         viewModelScope.launch {
-            val current = replayGainEnabled.value
-            userPreferences.setReplayGainEnabled(!current)
-            audioProcessor.setReplayGainEnabled(!current)
+            userPreferences.setReplayGainEnabled(!replayGainEnabled.value)
         }
     }
 
