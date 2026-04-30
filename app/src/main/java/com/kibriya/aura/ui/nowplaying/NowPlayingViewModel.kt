@@ -1,16 +1,24 @@
-/*
- * MIT License
- * Copyright (c) 2025 Md Golam Kibriya
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
- */
+// MIT License
+//
+// Copyright (c) 2024 Saad Kibriya
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 package com.kibriya.aura.ui.nowplaying
 
@@ -19,16 +27,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.palette.graphics.Palette
-import com.kibriya.aura.data.repository.PlayerRepository
-import com.kibriya.aura.data.repository.SongRepository
-import com.kibriya.aura.data.db.entity.SongEntity
 import com.kibriya.aura.domain.model.PlayerState
-import com.kibriya.aura.ui.theme.AuraViolet
+import com.kibriya.aura.domain.model.Song
+import com.kibriya.aura.domain.repository.PlayerRepository
+import com.kibriya.aura.domain.repository.SongRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -37,92 +44,29 @@ class NowPlayingViewModel @Inject constructor(
     private val songRepository: SongRepository
 ) : ViewModel() {
 
-    private val _playerState: StateFlow<PlayerState> = playerRepository.playerState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerState())
+    private val _playerState = MutableStateFlow(PlayerState())
+    val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
 
-    val currentSong: StateFlow<SongEntity?> = _playerState
-        .map { it.currentSong }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    val isPlaying: StateFlow<Boolean> = _playerState
-        .map { it.isPlaying }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    val positionMs: StateFlow<Long> = _playerState
-        .map { it.positionMs }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
-
-    val durationMs: StateFlow<Long> = _playerState
-        .map { it.durationMs }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
-
-    val repeatMode: StateFlow<Int> = _playerState
-        .map { it.repeatMode }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerState.REPEAT_MODE_OFF)
-
-    val isShuffled: StateFlow<Boolean> = _playerState
-        .map { it.isShuffled }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    val sleepTimerMs: StateFlow<Long?> = _playerState
-        .map { it.sleepTimerMs }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    private val _dominantColor = MutableStateFlow(AuraViolet)
-    val dominantColor: StateFlow<Color> = _dominantColor.asStateFlow()
-
-    private val _vibrantColor = MutableStateFlow(AuraViolet)
-    val vibrantColor: StateFlow<Color> = _vibrantColor.asStateFlow()
+    val dominantColor = MutableStateFlow(Color(0xFF8B5CF6))
 
     init {
-        observeAlbumArtForPalette()
-    }
-
-    private fun observeAlbumArtForPalette() {
         viewModelScope.launch {
-            currentSong.collectLatest { song ->
-                if (song?.albumArtBitmap != null) {
-                    extractPaletteColors(song.albumArtBitmap)
-                } else {
-                    _dominantColor.value = AuraViolet
-                    _vibrantColor.value = AuraViolet
-                }
+            playerRepository.playerState().collect { state ->
+                _playerState.value = state
             }
         }
     }
 
-    private suspend fun extractPaletteColors(bitmap: Bitmap) {
-        withContext(Dispatchers.Default) {
-            try {
-                val palette = Palette.from(bitmap).generate()
-                val dominant = palette.getDominantColor(android.graphics.Color.TRANSPARENT)
-                val vibrant = palette.getVibrantColor(android.graphics.Color.TRANSPARENT)
-                if (dominant != android.graphics.Color.TRANSPARENT) {
-                    _dominantColor.value = Color(dominant)
-                }
-                if (vibrant != android.graphics.Color.TRANSPARENT) {
-                    _vibrantColor.value = Color(vibrant)
-                }
-            } catch (e: Exception) {
-                _dominantColor.value = AuraViolet
-                _vibrantColor.value = AuraViolet
-            }
-        }
-    }
-
-    fun play() {
-        viewModelScope.launch { playerRepository.play() }
+    fun play(song: Song) {
+        viewModelScope.launch { playerRepository.play(song) }
     }
 
     fun pause() {
         viewModelScope.launch { playerRepository.pause() }
+    }
+
+    fun resume() {
+        viewModelScope.launch { playerRepository.resume() }
     }
 
     fun skipNext() {
@@ -145,14 +89,15 @@ class NowPlayingViewModel @Inject constructor(
         viewModelScope.launch { playerRepository.cycleRepeat() }
     }
 
-    fun setSleepTimer(durationMs: Long?) {
-        viewModelScope.launch { playerRepository.setSleepTimer(durationMs) }
+    fun toggleFavorite(songId: Long) {
+        viewModelScope.launch { songRepository.toggleFavorite(songId) }
     }
 
-    fun toggleFavorite() {
-        viewModelScope.launch {
-            currentSong.value?.id?.let { songId ->
-                songRepository.toggleFavorite(songId)
+    fun updateDominantColor(bitmap: Bitmap) {
+        Palette.from(bitmap).generate { palette ->
+            val swatch = palette?.dominantSwatch
+            if (swatch != null) {
+                dominantColor.value = Color(swatch.rgb)
             }
         }
     }
