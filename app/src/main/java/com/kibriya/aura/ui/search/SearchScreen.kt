@@ -22,15 +22,6 @@
 
 package com.kibriya.aura.ui.search
 
-@HiltViewModel
-class SearchViewModel @Inject constructor(
-    private val songRepository: SongRepository
-) : ViewModel() {
-    val searchQuery = MutableStateFlow("")
-    val songs = songRepository.getAllSongs()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-}
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -74,6 +65,16 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
+
+
+@HiltViewModel
+class SearchViewModel @Inject constructor(
+    private val songRepository: SongRepository
+) : ViewModel() {
+    val searchQuery = MutableStateFlow("")
+    val songs = songRepository.getAllSongs()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data class wrapping combined search results
