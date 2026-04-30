@@ -1,3 +1,4 @@
+
 /*
  * MIT License
  * Copyright (c) 2024 Md Golam Kibriya
@@ -6,11 +7,7 @@ package com.kibriya.aura.ui.equaliser
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,156 +15,129 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.kibriya.aura.domain.model.EqPreset
 import com.kibriya.aura.ui.equaliser.components.EqBandSlider
 import com.kibriya.aura.ui.nowplaying.components.MeshGradientBackground
 import com.kibriya.aura.ui.theme.GlassCard
-import com.kibriya.aura.ui.theme.glassBackground
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EqualiserScreen(
-    onBack: () -> Unit,
+    navController: NavController,
     viewModel: EqualiserViewModel = hiltViewModel()
 ) {
-    val bandGains by viewModel.bandGains.collectAsState()
-    val isEqEnabled by viewModel.isEqEnabled.collectAsState()
+    val bands by viewModel.bands.collectAsState()
     val crossfadeDuration by viewModel.crossfadeDuration.collectAsState()
     val replayGainEnabled by viewModel.replayGainEnabled.collectAsState()
 
-    val frequencies = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
-    val presets = EqPreset.builtIn()
+    val labels = listOf("31Hz", "62Hz", "125Hz", "250Hz", "500Hz", "1kHz", "2kHz", "4kHz", "8kHz", "16kHz")
+
+    val presetData = listOf(
+        "Flat"        to List(10) { 0f },
+        "Bass Boost"  to listOf(6f, 5f, 4f, 2f, 0f, 0f, 0f, 0f, 0f, 0f),
+        "Treble Boost" to listOf(0f, 0f, 0f, 0f, 0f, 2f, 3f, 4f, 5f, 6f),
+        "Vocal"       to listOf(-2f, -1f, 0f, 2f, 4f, 4f, 3f, 1f, 0f, -1f),
+        "Rock"        to listOf(5f, 4f, 2f, 0f, -1f, 0f, 2f, 4f, 5f, 5f),
+        "Electronic"  to listOf(5f, 4f, 1f, 0f, -2f, 0f, 1f, 3f, 4f, 5f),
+        "Classical"   to listOf(0f, 0f, 0f, 0f, 0f, 0f, -2f, -3f, -3f, -4f),
+        "Hip-Hop"     to listOf(5f, 4f, 1f, 3f, -1f, 0f, 1f, 2f, 2f, 3f)
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        MeshGradientBackground()
+        MeshGradientBackground(dominantColor = Color(0xFF8B5CF6))
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
         ) {
-            TopAppBar(
-                title = { Text("Equaliser") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    Text(
-                        text = if (isEqEnabled) "ON" else "OFF",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
-                    Switch(
-                        checked = isEqEnabled,
-                        onCheckedChange = { viewModel.toggleEq() },
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
+            // Top bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = { navController.popBackStack() }) {
+                    Text("← Back", color = Color(0xFF8B5CF6))
+                }
+                Spacer(Modifier.weight(1f))
+                Text("Equaliser", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                Spacer(Modifier.weight(1f))
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
             // Preset chips
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(presets) { preset ->
-                    FilterChip(
-                        selected = false,
-                        onClick = { viewModel.applyPreset(preset) },
-                        label = { Text(preset.name) }
-                    )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                itemsIndexed(presetData) { _, pair ->
+                    val (name, gains) = pair
+                    Button(
+                        onClick = { viewModel.applyPreset(EqPreset(name, gains)) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF8B5CF6).copy(alpha = 0.3f),
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(name, style = MaterialTheme.typography.labelMedium)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // EQ band sliders
-            GlassCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
+            // EQ Band sliders
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    frequencies.forEachIndexed { index, label ->
-                        val gain = if (index < bandGains.size) bandGains[index] else 0f
+                    bands.forEachIndexed { index, gain ->
                         EqBandSlider(
-                            gainDb = gain,
-                            label = label,
-                            onGainChange = { newGain -> viewModel.setBandGain(index, newGain) },
-                            modifier = Modifier.weight(1f)
+                            label = labels.getOrElse(index) { "${index + 1}" },
+                            gain = gain,
+                            onGainChange = { viewModel.setBand(index, it) }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // Crossfade and ReplayGain
-            GlassCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
+            // Crossfade + ReplayGain
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Crossfade: ${crossfadeDuration}s",
-                        style = MaterialTheme.typography.titleSmall
+                        "Crossfade: ${crossfadeDuration}s",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                     Slider(
                         value = crossfadeDuration.toFloat(),
                         onValueChange = { viewModel.setCrossfade(it.toInt()) },
                         valueRange = 0f..10f,
                         steps = 9,
-                        modifier = Modifier.fillMaxWidth()
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF8B5CF6),
+                            activeTrackColor = Color(0xFF8B5CF6)
+                        )
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                    Spacer(Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column {
-                            Text(
-                                text = "ReplayGain",
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Text(
-                                text = "Normalize volume across tracks",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text("ReplayGain", color = Color.White, style = MaterialTheme.typography.bodyMedium)
                         Switch(
                             checked = replayGainEnabled,
-                            onCheckedChange = { viewModel.toggleReplayGain() }
+                            onCheckedChange = { viewModel.toggleReplayGain(it) },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF8B5CF6))
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
