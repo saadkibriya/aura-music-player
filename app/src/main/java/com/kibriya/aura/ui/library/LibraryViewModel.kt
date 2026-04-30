@@ -1,114 +1,90 @@
 // MIT License
-// Copyright (c) 2025 Md Golam Kibriya
+//
+// Copyright (c) 2024 Saad Kibriya
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 package com.kibriya.aura.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kibriya.aura.data.db.entity.AlbumEntity
-import com.kibriya.aura.data.db.entity.ArtistEntity
-import com.kibriya.aura.data.db.entity.SongEntity
-import com.kibriya.aura.data.repository.SongRepository
-import com.kibriya.aura.data.scanner.MediaScanner
-import com.kibriya.aura.data.scanner.ScanState
+import com.kibriya.aura.data.local.preferences.UserPreferences
+import com.kibriya.aura.domain.model.Song
+import com.kibriya.aura.domain.repository.SongRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class LibraryTab { SONGS, ALBUMS, ARTISTS, FOLDERS }
-
-data class LibraryUiState(
-    val songs: List<SongEntity> = emptyList(),
-    val albums: List<AlbumEntity> = emptyList(),
-    val artists: List<ArtistEntity> = emptyList(),
-    val selectedTab: LibraryTab = LibraryTab.SONGS,
-    val scanState: ScanState = ScanState.Idle,
-    val searchQuery: String = ""
-)
-
-@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val songRepository: SongRepository,
-    private val mediaScanner: MediaScanner
+    private val userPreferences: UserPreferences
 ) : ViewModel() {
 
-    private val _selectedTab = MutableStateFlow(LibraryTab.SONGS)
-    val selectedTab: StateFlow<LibraryTab> = _selectedTab.asStateFlow()
+    private val _songs = MutableStateFlow<List<Song>>(emptyList())
+    val songs: StateFlow<List<Song>> = _songs.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    private val _albums = MutableStateFlow<List<Song>>(emptyList())
+    val albums: StateFlow<List<Song>> = _albums.asStateFlow()
 
-    val songs: StateFlow<List<SongEntity>> = songRepository.getAllSongs()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _artists = MutableStateFlow<List<String>>(emptyList())
+    val artists: StateFlow<List<String>> = _artists.asStateFlow()
 
-    val albums: StateFlow<List<AlbumEntity>> = songRepository.getAllAlbums()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val selectedTab = MutableStateFlow(0)
 
-    val artists: StateFlow<List<ArtistEntity>> = songRepository.getAllArtists()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val searchQuery = MutableStateFlow("")
 
-    val scanState: StateFlow<ScanState> = mediaScanner.scanState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScanState.Idle)
-
-    val debouncedQuery: StateFlow<String> = _searchQuery
-        .debounce(300L)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-
-    data class SearchResults(
-        val songs: List<SongEntity> = emptyList(),
-        val albums: List<AlbumEntity> = emptyList(),
-        val artists: List<ArtistEntity> = emptyList()
-    )
-
-    val searchResults: StateFlow<SearchResults> = debouncedQuery
-        .flatMapLatest { query ->
-            if (query.isBlank()) {
-                flow { emit(SearchResults()) }
-            } else {
-                combine(
-                    songRepository.searchSongs(query),
-                    songRepository.searchAlbums(query),
-                    songRepository.searchArtists(query)
-                ) { songs, albums, artists ->
-                    SearchResults(songs, albums, artists)
-                }
-            }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchResults())
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
     init {
         viewModelScope.launch {
-            songs.collect { songList ->
-                if (songList.isEmpty() && scanState.value == ScanState.Idle) {
+            songRepository.getAllSongs().collect { songList ->
+                _songs.value = songList
+                if (songList.isEmpty()) {
                     triggerScan()
                 }
             }
         }
-    }
-
-    fun selectTab(tab: LibraryTab) {
-        _selectedTab.value = tab
-    }
-
-    fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
-    }
-
-    fun triggerScan() {
         viewModelScope.launch {
-            mediaScanner.scan()
+            songRepository.getAlbums().collect { albumList ->
+                _albums.value = albumList
+            }
+        }
+        viewModelScope.launch {
+            songRepository.getArtists().collect { artistList ->
+                _artists.value = artistList
+            }
+        }
+        viewModelScope.launch {
+            songRepository.isScanning().collect { scanning ->
+                _isScanning.value = scanning
+            }
+        }
+    }
+
+    private fun triggerScan() {
+        viewModelScope.launch {
+            songRepository.triggerScan()
         }
     }
 }
