@@ -18,6 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSessionService
 import com.kibriya.aura.R
 import com.kibriya.aura.data.preferences.UserPreferences
 import com.kibriya.aura.domain.model.Song
