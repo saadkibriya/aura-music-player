@@ -2,10 +2,8 @@
  * MIT License
  * Copyright (c) 2024 Md Golam Kibriya
  */
-
 package com.kibriya.aura.service
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -14,196 +12,155 @@ import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.kibriya.aura.R
 import com.kibriya.aura.data.local.preferences.UserPreferences
 import com.kibriya.aura.domain.model.Song
+import com.kibriya.aura.domain.repository.SongRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
+
+private const val NOTIFICATION_CHANNEL_ID = "aura_playback_channel"
+private const val NOTIFICATION_ID = 1001
 
 @AndroidEntryPoint
 class AudioPlaybackService : MediaSessionService() {
 
-    @Inject
-    lateinit var userPreferences: UserPreferences
-
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    @Inject lateinit var userPreferences: UserPreferences
+    @Inject lateinit var songRepository: SongRepository
 
     private lateinit var player: ExoPlayer
+    private var mediaSession: MediaSession? = null
 
-    private val _currentSong = MutableStateFlow<Song?>(null)
-    val currentSong: StateFlow<Song?> = _currentSong
-
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying: StateFlow<Boolean> = _isPlaying
-
-    private val _playbackPosition = MutableStateFlow(0L)
-    val playbackPosition: StateFlow<Long> = _playbackPosition
-
-    private var songQueue: List<Song> = emptyList()
-    private var currentIndex: Int = 0
-
-    companion object {
-        const val NOTIFICATION_CHANNEL_ID = "aura_playback_channel"
-        const val NOTIFICATION_ID = 1001
-        const val ACTION_PLAY = "com.kibriya.aura.ACTION_PLAY"
-        const val ACTION_PAUSE = "com.kibriya.aura.ACTION_PAUSE"
-        const val ACTION_NEXT = "com.kibriya.aura.ACTION_NEXT"
-        const val ACTION_PREV = "com.kibriya.aura.ACTION_PREV"
-        const val ACTION_STOP = "com.kibriya.aura.ACTION_STOP"
-    }
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
 
-        val crossfadeDuration = runBlocking {
-            userPreferences.getCrossfadeDuration().first()
-        }
-
         player = ExoPlayer.Builder(this).build()
+
+        mediaSession = MediaSession.Builder(this, player).build()
+
         player.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                _isPlaying.value = isPlaying
-                updateNotification()
-            }
-
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    skipToNext()
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                super.onMediaItemTransition(mediaItem, reason)
+                mediaItem?.mediaId?.toLongOrNull()?.let { songId ->
+                    serviceScope.launch {
+                        songRepository.updatePlayCount(songId)
+                    }
                 }
+                updateNotification(mediaItem)
             }
 
-            override fun onPositionDiscontinuity(
-                oldPosition: Player.PositionInfo,
-                newPosition: Player.PositionInfo,
-                reason: Int
-            ) {
-                _playbackPosition.value = newPosition.positionMs
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                super.onIsPlayingChanged(isPlaying)
+                updateNotification(player.currentMediaItem)
             }
         })
 
-        startForeground(NOTIFICATION_ID, buildNotification())
+        observePreferences()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
-        when (intent?.action) {
-            ACTION_PLAY -> resumePlayback()
-            ACTION_PAUSE -> pausePlayback()
-            ACTION_NEXT -> skipToNext()
-            ACTION_PREV -> skipToPrevious()
-            ACTION_STOP -> stopSelf()
+    private fun observePreferences() {
+        serviceScope.launch {
+            userPreferences.crossfadeDuration.collectLatest { _ ->
+                // crossfade duration handled at playlist/transition level
+            }
         }
-        return START_NOT_STICKY
     }
 
-    override fun onGetSession(controllerInfo: androidx.media3.session.MediaSession.ControllerInfo) = null
-
-    fun playSong(song: Song, queue: List<Song> = emptyList()) {
-        _currentSong.value = song
-        songQueue = queue.ifEmpty { listOf(song) }
-        currentIndex = songQueue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-        val mediaItem = MediaItem.fromUri(song.filePath)
-        player.setMediaItem(mediaItem)
+    fun playQueue(songs: List<Song>, startIndex: Int = 0) {
+        val mediaItems = songs.map { song ->
+            MediaItem.Builder()
+                .setMediaId(song.id.toString())
+                .setUri(song.filePath)
+                .build()
+        }
+        player.setMediaItems(mediaItems, startIndex, 0L)
         player.prepare()
         player.play()
-        updateNotification()
     }
 
-    fun resumePlayback() { player.play() }
-
-    fun pausePlayback() {
-        player.pause()
-        saveCurrentPosition()
+    fun togglePlayPause() {
+        if (player.isPlaying) player.pause() else player.play()
     }
 
     fun skipToNext() {
-        if (currentIndex < songQueue.size - 1) {
-            currentIndex++
-            playSong(songQueue[currentIndex], songQueue)
-        }
+        if (player.hasNextMediaItem()) player.seekToNextMediaItem()
     }
 
     fun skipToPrevious() {
-        if (player.currentPosition > 3000) {
-            player.seekTo(0)
-        } else if (currentIndex > 0) {
-            currentIndex--
-            playSong(songQueue[currentIndex], songQueue)
-        }
+        if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem()
     }
 
     fun seekTo(positionMs: Long) {
         player.seekTo(positionMs)
-        _playbackPosition.value = positionMs
-    }
-
-    fun getCurrentPosition(): Long = player.currentPosition
-    fun getDuration(): Long = player.duration.coerceAtLeast(0L)
-
-    private fun saveCurrentPosition() {
-        val song = _currentSong.value ?: return
-        val positionMs = player.currentPosition
-        serviceScope.launch {
-            userPreferences.saveLastPlayed(song.id, positionMs)
-        }
     }
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             NOTIFICATION_CHANNEL_ID,
-            "Aura Playback",
+            "Aura Music Playback",
             NotificationManager.IMPORTANCE_LOW
-        ).apply { description = "Music playback controls" }
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-    }
-
-    private fun buildNotification(): Notification {
-        val song = _currentSong.value
-        val playPauseAction = if (_isPlaying.value) {
-            NotificationCompat.Action(R.drawable.ic_pause, "Pause", buildActionIntent(ACTION_PAUSE))
-        } else {
-            NotificationCompat.Action(R.drawable.ic_play, "Play", buildActionIntent(ACTION_PLAY))
+        ).apply {
+            description = "Music playback controls"
         }
-        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_music_note)
-            .setContentTitle(song?.title ?: "Aura")
-            .setContentText(song?.artist ?: "")
-            .addAction(R.drawable.ic_skip_previous, "Previous", buildActionIntent(ACTION_PREV))
-            .addAction(playPauseAction)
-            .addAction(R.drawable.ic_skip_next, "Next", buildActionIntent(ACTION_NEXT))
-            .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setShowActionsInCompactView(0, 1, 2)
-            )
-            .setOngoing(_isPlaying.value)
-            .build()
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
     }
 
-    private fun buildActionIntent(action: String): PendingIntent {
-        val intent = Intent(this, AudioPlaybackService::class.java).apply { this.action = action }
-        return PendingIntent.getService(
-            this, action.hashCode(), intent,
+    private fun updateNotification(mediaItem: MediaItem?) {
+        val title = mediaItem?.mediaMetadata?.title?.toString() ?: "Aura Music"
+        val artist = mediaItem?.mediaMetadata?.artist?.toString() ?: ""
+
+        val launchIntent = packageManager
+            .getLaunchIntentForPackage(packageName)
+            ?.apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_music_note)
+            .setContentTitle(title)
+            .setContentText(artist)
+            .setContentIntent(pendingIntent)
+            .setOngoing(player.isPlaying)
+            .setSilent(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        startForeground(NOTIFICATION_ID, notification)
     }
 
-    private fun updateNotification() {
-        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification())
-    }
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = null
 
     override fun onDestroy() {
-        saveCurrentPosition()
-        player.release()
+        mediaSession?.run {
+            player.release()
+            release()
+            mediaSession = null
+        }
+        serviceScope.cancel()
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val player = mediaSession?.player
+        if (player != null && (!player.playWhenReady || player.mediaItemCount == 0)) {
+            stopSelf()
+        }
     }
 }
