@@ -1,12 +1,17 @@
 /*
  * MIT License
- * Copyright (c) 2024 Saad Kibriya
+ * Copyright (c) 2024 Md Golam Kibriya
  */
 
 package com.kibriya.aura.data.local.preferences
 
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -17,7 +22,7 @@ class UserPreferences @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
 
-    companion object PreferencesKeys {
+    companion object {
         val EQ_ENABLED         = booleanPreferencesKey("eq_enabled")
         val BAND_GAINS         = stringPreferencesKey("band_gains")
         val CROSSFADE_DURATION = intPreferencesKey("crossfade_duration")
@@ -29,8 +34,6 @@ class UserPreferences @Inject constructor(
         val GAPLESS_ENABLED    = booleanPreferencesKey("gapless_enabled")
         val ACCENT_COLOR       = stringPreferencesKey("accent_color")
     }
-
-    // ── EQ ───────────────────────────────────────────────────────────────────
 
     val isEqEnabled: Flow<Boolean> = dataStore.data.map { it[EQ_ENABLED] ?: false }
 
@@ -50,8 +53,6 @@ class UserPreferences @Inject constructor(
         dataStore.edit { it[BAND_GAINS] = gains.joinToString(",") }
     }
 
-    // ── Crossfade ─────────────────────────────────────────────────────────────
-
     val crossfadeDuration: Flow<Int> = dataStore.data.map { it[CROSSFADE_DURATION] ?: 0 }
 
     fun getCrossfadeDuration(): Flow<Int> = crossfadeDuration
@@ -60,15 +61,11 @@ class UserPreferences @Inject constructor(
         dataStore.edit { it[CROSSFADE_DURATION] = seconds }
     }
 
-    // ── Replay Gain ───────────────────────────────────────────────────────────
-
     val replayGainEnabled: Flow<Boolean> = dataStore.data.map { it[REPLAY_GAIN] ?: false }
 
     suspend fun setReplayGainEnabled(enabled: Boolean) {
         dataStore.edit { it[REPLAY_GAIN] = enabled }
     }
-
-    // ── Last Played ───────────────────────────────────────────────────────────
 
     val lastSongId: Flow<Long> = dataStore.data.map { it[LAST_SONG_ID] ?: -1L }
 
@@ -82,8 +79,6 @@ class UserPreferences @Inject constructor(
             it[LAST_POSITION_MS] = positionMs
         }
     }
-
-    // ── Playback ──────────────────────────────────────────────────────────────
 
     val isShuffled: Flow<Boolean> = dataStore.data.map { it[IS_SHUFFLED] ?: false }
 
@@ -103,9 +98,7 @@ class UserPreferences @Inject constructor(
         dataStore.edit { it[GAPLESS_ENABLED] = enabled }
     }
 
-    // ── Theme ─────────────────────────────────────────────────────────────────
-
-    val accentColor: Flow<String> = dataStore.data.map { it[ACCENT_COLOR] ?: "#6650A4" }
+    val accentColor: Flow<String> = dataStore.data.map { it[ACCENT_COLOR] ?: "#8B5CF6" }
 
     suspend fun setAccentColor(color: String) {
         dataStore.edit { it[ACCENT_COLOR] = color }
