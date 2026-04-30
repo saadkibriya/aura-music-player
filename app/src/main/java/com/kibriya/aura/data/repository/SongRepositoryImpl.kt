@@ -31,26 +31,22 @@ class SongRepositoryImpl @Inject constructor(
         album = album,
         albumId = albumId,
         duration = duration,
-        filePath = filePath,
+        filePath = try { filePath } catch (e: Throwable) { "" },
         albumArtUri = albumArtUri,
         dateAdded = dateAdded,
         playCount = playCount,
         isFavorite = isFavorite,
-        rating = rating
+        rating = try { rating } catch (e: Throwable) { 0f }
     )
 
     override fun getAllSongs(): Flow<List<Song>> =
         songDao.getAllSongs().map { list -> list.map { it.toDomain() } }
 
     override fun getAlbums(): Flow<List<Song>> =
-        songDao.getAllSongs().map { list ->
-            list.distinctBy { it.albumId }.map { it.toDomain() }
-        }
+        songDao.getAllSongs().map { list -> list.distinctBy { it.albumId }.map { it.toDomain() } }
 
     override fun getArtists(): Flow<List<String>> =
-        songDao.getAllSongs().map { list ->
-            list.map { it.artist }.distinct()
-        }
+        songDao.getAllSongs().map { list -> list.map { it.artist }.distinct().sorted() }
 
     override fun getSongsByAlbum(albumId: Long): Flow<List<Song>> =
         songDao.getSongsByAlbum(albumId).map { list -> list.map { it.toDomain() } }
@@ -67,11 +63,9 @@ class SongRepositoryImpl @Inject constructor(
     override fun getFavorites(): Flow<List<Song>> =
         songDao.getFavorites().map { list -> list.map { it.toDomain() } }
 
-    override suspend fun toggleFavorite(songId: Long) =
-        songDao.toggleFavorite(songId)
+    override suspend fun toggleFavorite(songId: Long) = songDao.toggleFavorite(songId)
 
-    override suspend fun updatePlayCount(songId: Long) =
-        songDao.updatePlayCount(songId)
+    override suspend fun updatePlayCount(songId: Long) = songDao.updatePlayCount(songId)
 
     override suspend fun triggerScan() {
         WorkManager.getInstance(context)
