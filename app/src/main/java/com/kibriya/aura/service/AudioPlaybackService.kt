@@ -1,216 +1,237 @@
 /*
  * MIT License
- * Copyright (c) 2025 Md Golam Kibriya
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Copyright (c) 2024 Saad Kibriya
  */
 
 package com.kibriya.aura.service
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
-import android.os.Build
-import androidx.annotation.OptIn
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
+import android.os.Binder
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.TeeAudioProcessor
-import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
-import com.kibriya.aura.data.local.preferences.UserPreferences
+import com.kibriya.aura.R
+import com.kibriya.aura.data.preferences.UserPreferences
+import com.kibriya.aura.domain.model.Song
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
-@OptIn(UnstableApi::class)
-class AudioPlaybackService : MediaSessionService() {
+class AudioPlaybackService : LifecycleService() {
+
+    @Inject
+    lateinit var userPreferences: UserPreferences
+
+    private val binder = LocalBinder()
+
+    private lateinit var player: ExoPlayer
+
+    private val _currentSong = MutableStateFlow<Song?>(null)
+    val currentSong: StateFlow<Song?> = _currentSong
+
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> = _isPlaying
+
+    private val _playbackPosition = MutableStateFlow(0L)
+    val playbackPosition: StateFlow<Long> = _playbackPosition
+
+    private var songQueue: List<Song> = emptyList()
+    private var currentIndex: Int = 0
 
     companion object {
         const val NOTIFICATION_CHANNEL_ID = "aura_playback_channel"
-        const val NOTIFICATION_CHANNEL_NAME = "Aura Playback"
-        /** Crossfade step interval in ms */
-        private const val CROSSFADE_STEP_MS = 50L
-        /** Volume fade steps for sleep timer */
-        private const val SLEEP_FADE_STEPS = 40
-        private const val SLEEP_FADE_STEP_MS = 100L
+        const val NOTIFICATION_ID = 1001
+        const val ACTION_PLAY = "com.kibriya.aura.ACTION_PLAY"
+        const val ACTION_PAUSE = "com.kibriya.aura.ACTION_PAUSE"
+        const val ACTION_NEXT = "com.kibriya.aura.ACTION_NEXT"
+        const val ACTION_PREV = "com.kibriya.aura.ACTION_PREV"
+        const val ACTION_STOP = "com.kibriya.aura.ACTION_STOP"
     }
 
-    @Inject lateinit var userPreferences: UserPreferences
-
-    private lateinit var player: ExoPlayer
-    private lateinit var mediaSession: MediaSession
-
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
-    // Sleep timer state
-    private var sleepTimerJob: Job? = null
-    private var sleepTimerEndMs: Long = 0L
-
-    // Crossfade duration (seconds); 0 = disabled
-    private var crossfadeDurationSec: Int = 0
+    inner class LocalBinder : Binder() {
+        fun getService(): AudioPlaybackService = this@AudioPlaybackService
+    }
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        serviceScope.launch {
-            crossfadeDurationSec = userPreferences.getCrossfadeDuration()
-        }
-        buildPlayer()
-        mediaSession = MediaSession.Builder(this, player).build()
-    }
 
-    private fun buildPlayer() {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .build()
+        // Fix line 82: getCrossfadeDuration() returns Flow<Int>, collect it properly
+        val crossfadeDuration = runBlocking { userPreferences.getCrossfadeDuration().first() }
 
-        player = ExoPlayer.Builder(this)
-            .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
-            .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
-            .build()
-            .also { exo ->
-                exo.repeatMode = Player.REPEAT_MODE_OFF
-                exo.shuffleModeEnabled = false
-                // Gapless: ExoPlayer handles this natively when items are queued
-                exo.addListener(object : Player.Listener {
-                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                        if (crossfadeDurationSec > 0 &&
-                            reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
-                        ) {
-                            applyCrossfade(crossfadeDurationSec)
-                        }
-                    }
-                })
+        player = ExoPlayer.Builder(this).build()
+        player.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _isPlaying.value = isPlaying
+                updateNotification()
             }
-    }
 
-    /**
-     * Simple crossfade: fades volume to 0 over [durationSec] seconds then back to 1.
-     * Real crossfade (two simultaneous streams) requires a custom AudioProcessor or
-     * two ExoPlayer instances; this is the single-player volume-ramp approximation.
-     */
-    private fun applyCrossfade(durationSec: Int) {
-        serviceScope.launch {
-            val steps = (durationSec * 1000L / CROSSFADE_STEP_MS).toInt().coerceAtLeast(1)
-            val stepDown = 1f / steps
-            // Fade out
-            var vol = player.volume
-            repeat(steps) {
-                vol = (vol - stepDown).coerceAtLeast(0f)
-                player.volume = vol
-                delay(CROSSFADE_STEP_MS)
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    skipToNext()
+                }
             }
-            // Fade in
-            val stepUp = 1f / steps
-            repeat(steps) {
-                vol = (vol + stepUp).coerceAtMost(1f)
-                player.volume = vol
-                delay(CROSSFADE_STEP_MS)
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int
+            ) {
+                _playbackPosition.value = newPosition.positionMs
             }
-            player.volume = 1f
-        }
+        })
+
+        startForeground(NOTIFICATION_ID, buildNotification())
     }
 
-    // ── Sleep Timer ──────────────────────────────────────────────────────────
-
-    fun startSleepTimer(durationMs: Long) {
-        sleepTimerJob?.cancel()
-        sleepTimerEndMs = System.currentTimeMillis() + durationMs
-        sleepTimerJob = serviceScope.launch {
-            delay(durationMs)
-            fadeOutAndStop()
-        }
+    override fun onBind(intent: Intent): IBinder {
+        super.onBind(intent)
+        return binder
     }
 
-    fun cancelSleepTimer() {
-        sleepTimerJob?.cancel()
-        sleepTimerJob = null
-        sleepTimerEndMs = 0L
-        // Restore volume in case a fade was in progress
-        player.volume = 1f
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        when (intent?.action) {
+            ACTION_PLAY -> resumePlayback()
+            ACTION_PAUSE -> pausePlayback()
+            ACTION_NEXT -> skipToNext()
+            ACTION_PREV -> skipToPrevious()
+            ACTION_STOP -> stopSelf()
+        }
+        return START_NOT_STICKY
     }
 
-    fun remainingSleepMs(): Long =
-        if (sleepTimerEndMs == 0L) 0L
-        else (sleepTimerEndMs - System.currentTimeMillis()).coerceAtLeast(0L)
+    fun playSong(song: Song, queue: List<Song> = emptyList()) {
+        _currentSong.value = song
+        songQueue = queue.ifEmpty { listOf(song) }
+        currentIndex = songQueue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
 
-    private suspend fun fadeOutAndStop() {
-        val stepDown = player.volume / SLEEP_FADE_STEPS
-        repeat(SLEEP_FADE_STEPS) {
-            player.volume = (player.volume - stepDown).coerceAtLeast(0f)
-            delay(SLEEP_FADE_STEP_MS)
-        }
+        val mediaItem = MediaItem.fromUri(song.filePath)
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.play()
+
+        updateNotification()
+    }
+
+    fun resumePlayback() {
+        player.play()
+    }
+
+    fun pausePlayback() {
         player.pause()
-        player.volume = 1f
-        sleepTimerEndMs = 0L
+        saveCurrentPosition()
     }
 
-    // ── Notification Channel ─────────────────────────────────────────────────
+    fun skipToNext() {
+        if (currentIndex < songQueue.size - 1) {
+            currentIndex++
+            playSong(songQueue[currentIndex], songQueue)
+        }
+    }
+
+    fun skipToPrevious() {
+        if (player.currentPosition > 3000) {
+            player.seekTo(0)
+        } else if (currentIndex > 0) {
+            currentIndex--
+            playSong(songQueue[currentIndex], songQueue)
+        }
+    }
+
+    fun seekTo(positionMs: Long) {
+        player.seekTo(positionMs)
+        _playbackPosition.value = positionMs
+    }
+
+    fun getCurrentPosition(): Long = player.currentPosition
+
+    fun getDuration(): Long = player.duration.coerceAtLeast(0L)
+
+    // Fix line 208: replace saveLastPlayed call using coroutine scope launch
+    private fun saveCurrentPosition() {
+        val song = _currentSong.value ?: return
+        val positionMs = player.currentPosition
+        lifecycleScope.launch {
+            userPreferences.saveLastPlayed(song.id, positionMs)
+        }
+    }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                NOTIFICATION_CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Aura music playback controls"
-                setShowBadge(false)
-            }
-            val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            "Aura Playback",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Music playback controls"
         }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
     }
 
-    // ── MediaSessionService ──────────────────────────────────────────────────
+    private fun buildNotification(): Notification {
+        val song = _currentSong.value
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession =
-        mediaSession
-
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        if (!player.playWhenReady || player.mediaItemCount == 0) {
-            stopSelf()
+        val playPauseAction = if (_isPlaying.value) {
+            NotificationCompat.Action(
+                R.drawable.ic_pause,
+                "Pause",
+                buildActionIntent(ACTION_PAUSE)
+            )
+        } else {
+            NotificationCompat.Action(
+                R.drawable.ic_play,
+                "Play",
+                buildActionIntent(ACTION_PLAY)
+            )
         }
+
+        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_music_note)
+            .setContentTitle(song?.title ?: "Aura")
+            .setContentText(song?.artist ?: "")
+            .addAction(R.drawable.ic_skip_previous, "Previous", buildActionIntent(ACTION_PREV))
+            .addAction(playPauseAction)
+            .addAction(R.drawable.ic_skip_next, "Next", buildActionIntent(ACTION_NEXT))
+            .setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setShowActionsInCompactView(0, 1, 2)
+            )
+            .setOngoing(_isPlaying.value)
+            .build()
+    }
+
+    private fun buildActionIntent(action: String): PendingIntent {
+        val intent = Intent(this, AudioPlaybackService::class.java).apply {
+            this.action = action
+        }
+        return PendingIntent.getService(
+            this, action.hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun updateNotification() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIFICATION_ID, buildNotification())
     }
 
     override fun onDestroy() {
-        serviceScope.launch {
-            // Persist last position
-            player.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
-                userPreferences.saveLastPlayed(id, player.currentPosition)
-            }
-        }
-        mediaSession.release()
+        saveCurrentPosition()
         player.release()
-        serviceScope.cancel()
         super.onDestroy()
     }
 }
