@@ -1,6 +1,6 @@
 /*
  * MIT License
- * Copyright (c) 2024 Saad Kibriya
+ * Copyright (c) 2024 Md Golam Kibriya
  */
 
 package com.kibriya.aura.service
@@ -10,19 +10,18 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
-import android.os.Binder
-import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import androidx.lifecycle.LifecycleService
-import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSessionService
 import com.kibriya.aura.R
-import com.kibriya.aura.data.preferences.UserPreferences
+import com.kibriya.aura.data.local.preferences.UserPreferences
 import com.kibriya.aura.domain.model.Song
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -30,12 +29,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class AudioPlaybackService : MediaSessionService() {
 
     @Inject
     lateinit var userPreferences: UserPreferences
 
-    private val binder = LocalBinder()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var player: ExoPlayer
 
@@ -61,16 +61,13 @@ class AudioPlaybackService : MediaSessionService() {
         const val ACTION_STOP = "com.kibriya.aura.ACTION_STOP"
     }
 
-    inner class LocalBinder : Binder() {
-        fun getService(): AudioPlaybackService = this@AudioPlaybackService
-    }
-
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
 
-        // Fix line 82: getCrossfadeDuration() returns Flow<Int>, collect it properly
-        val crossfadeDuration = runBlocking { userPreferences.getCrossfadeDuration().first() }
+        val crossfadeDuration = runBlocking {
+            userPreferences.getCrossfadeDuration().first()
+        }
 
         player = ExoPlayer.Builder(this).build()
         player.addListener(object : Player.Listener {
@@ -97,11 +94,6 @@ class AudioPlaybackService : MediaSessionService() {
         startForeground(NOTIFICATION_ID, buildNotification())
     }
 
-    override fun onBind(intent: Intent): IBinder {
-        super.onBind(intent)
-        return binder
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
@@ -114,22 +106,20 @@ class AudioPlaybackService : MediaSessionService() {
         return START_NOT_STICKY
     }
 
+    override fun onGetSession(controllerInfo: androidx.media3.session.MediaSession.ControllerInfo) = null
+
     fun playSong(song: Song, queue: List<Song> = emptyList()) {
         _currentSong.value = song
         songQueue = queue.ifEmpty { listOf(song) }
         currentIndex = songQueue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-
         val mediaItem = MediaItem.fromUri(song.filePath)
         player.setMediaItem(mediaItem)
         player.prepare()
         player.play()
-
         updateNotification()
     }
 
-    fun resumePlayback() {
-        player.play()
-    }
+    fun resumePlayback() { player.play() }
 
     fun pausePlayback() {
         player.pause()
@@ -158,14 +148,12 @@ class AudioPlaybackService : MediaSessionService() {
     }
 
     fun getCurrentPosition(): Long = player.currentPosition
-
     fun getDuration(): Long = player.duration.coerceAtLeast(0L)
 
-    // Fix line 208: replace saveLastPlayed call using coroutine scope launch
     private fun saveCurrentPosition() {
         val song = _currentSong.value ?: return
         val positionMs = player.currentPosition
-        lifecycleScope.launch {
+        serviceScope.launch {
             userPreferences.saveLastPlayed(song.id, positionMs)
         }
     }
@@ -175,30 +163,17 @@ class AudioPlaybackService : MediaSessionService() {
             NOTIFICATION_CHANNEL_ID,
             "Aura Playback",
             NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Music playback controls"
-        }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        ).apply { description = "Music playback controls" }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
     private fun buildNotification(): Notification {
         val song = _currentSong.value
-
         val playPauseAction = if (_isPlaying.value) {
-            NotificationCompat.Action(
-                R.drawable.ic_pause,
-                "Pause",
-                buildActionIntent(ACTION_PAUSE)
-            )
+            NotificationCompat.Action(R.drawable.ic_pause, "Pause", buildActionIntent(ACTION_PAUSE))
         } else {
-            NotificationCompat.Action(
-                R.drawable.ic_play,
-                "Play",
-                buildActionIntent(ACTION_PLAY)
-            )
+            NotificationCompat.Action(R.drawable.ic_play, "Play", buildActionIntent(ACTION_PLAY))
         }
-
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_music_note)
             .setContentTitle(song?.title ?: "Aura")
@@ -215,9 +190,7 @@ class AudioPlaybackService : MediaSessionService() {
     }
 
     private fun buildActionIntent(action: String): PendingIntent {
-        val intent = Intent(this, AudioPlaybackService::class.java).apply {
-            this.action = action
-        }
+        val intent = Intent(this, AudioPlaybackService::class.java).apply { this.action = action }
         return PendingIntent.getService(
             this, action.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -225,8 +198,7 @@ class AudioPlaybackService : MediaSessionService() {
     }
 
     private fun updateNotification() {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, buildNotification())
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification())
     }
 
     override fun onDestroy() {
