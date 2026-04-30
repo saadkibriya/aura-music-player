@@ -1,6 +1,6 @@
 /*
  * MIT License
- * Copyright (c) 2024 Saad Kibriya
+ * Copyright (c) 2024 Md Golam Kibriya
  */
 
 package com.kibriya.aura.service
@@ -8,7 +8,7 @@ package com.kibriya.aura.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.kibriya.aura.data.preferences.UserPreferences
+import com.kibriya.aura.data.local.preferences.UserPreferences
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -23,10 +23,8 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
-        // Fix: collect getLastPlayedSongId() Flow properly
         val lastPlayedSongId = runBlocking { userPreferences.getLastPlayedSongId().first() }
 
-        // Fix: replace NO_SONG reference with -1L
         if (lastPlayedSongId == -1L) return
 
         val serviceIntent = Intent(context, AudioPlaybackService::class.java).apply {
