@@ -29,8 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
-@AndroidEntryPoint
-class AudioPlaybackService : LifecycleService() {
+class AudioPlaybackService : MediaSessionService() {
 
     @Inject
     lateinit var userPreferences: UserPreferences
