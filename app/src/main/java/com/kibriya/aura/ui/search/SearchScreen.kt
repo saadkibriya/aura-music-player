@@ -309,7 +309,7 @@ fun NoResultsState(
             modifier = Modifier.size(40.dp)
         )
         Text(
-            text = "No results for "$query"",
+            text = "No results for \"$query\"",
             style = TextStyle(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.40f),
                 fontSize = 15.sp,
