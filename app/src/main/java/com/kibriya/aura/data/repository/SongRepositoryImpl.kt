@@ -1,15 +1,14 @@
 /*
  * MIT License
- * Copyright (c) 2024 Saad Kibriya
+ * Copyright (c) 2024 Md Golam Kibriya
  */
-
 package com.kibriya.aura.data.repository
 
 import android.content.Context
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kibriya.aura.data.local.dao.SongDao
-import com.kibriya.aura.data.local.entity.SongEntity
+import com.kibriya.aura.data.local.entities.SongEntity
 import com.kibriya.aura.data.scanner.MediaScanner
 import com.kibriya.aura.domain.model.Song
 import com.kibriya.aura.domain.repository.SongRepository
@@ -43,6 +42,16 @@ class SongRepositoryImpl @Inject constructor(
     override fun getAllSongs(): Flow<List<Song>> =
         songDao.getAllSongs().map { list -> list.map { it.toDomain() } }
 
+    override fun getAlbums(): Flow<List<Song>> =
+        songDao.getAllSongs().map { list ->
+            list.distinctBy { it.albumId }.map { it.toDomain() }
+        }
+
+    override fun getArtists(): Flow<List<String>> =
+        songDao.getAllSongs().map { list ->
+            list.map { it.artist }.distinct()
+        }
+
     override fun getSongsByAlbum(albumId: Long): Flow<List<Song>> =
         songDao.getSongsByAlbum(albumId).map { list -> list.map { it.toDomain() } }
 
@@ -58,26 +67,14 @@ class SongRepositoryImpl @Inject constructor(
     override fun getFavorites(): Flow<List<Song>> =
         songDao.getFavorites().map { list -> list.map { it.toDomain() } }
 
-    override fun getAlbums(): Flow<List<Song>> =
-        getAllSongs().map { it.distinctBy { s -> s.albumId } }
+    override suspend fun toggleFavorite(songId: Long) =
+        songDao.toggleFavorite(songId)
 
-    override fun getArtists(): Flow<List<String>> =
-        getAllSongs().map { it.map { s -> s.artist }.distinct() }
-
-    override suspend fun getSongById(id: Long): Song? =
-        songDao.getSongById(id)?.toDomain()
-
-    override suspend fun updatePlayCount(id: Long) =
-        songDao.updatePlayCount(id)
-
-    override suspend fun toggleFavorite(id: Long) =
-        songDao.toggleFavorite(id)
-
-    override suspend fun upsertAll(songs: List<SongEntity>) =
-        songDao.upsertAll(songs)
+    override suspend fun updatePlayCount(songId: Long) =
+        songDao.updatePlayCount(songId)
 
     override suspend fun triggerScan() {
-        val request = OneTimeWorkRequestBuilder<MediaScanner>().build()
-        WorkManager.getInstance(context).enqueue(request)
+        WorkManager.getInstance(context)
+            .enqueue(OneTimeWorkRequestBuilder<MediaScanner>().build())
     }
 }
