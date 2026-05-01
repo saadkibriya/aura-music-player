@@ -1,7 +1,5 @@
-/*
- * MIT License
- * Copyright (c) 2024 Md Golam Kibriya
- */
+// MIT License
+// Copyright (c) 2025 Md Golam Kibriya
 package com.kibriya.aura.ui.library
 
 import androidx.compose.foundation.layout.*
@@ -12,19 +10,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kibriya.aura.domain.model.Song
 import com.kibriya.aura.ui.library.tabs.AlbumsTab
 import com.kibriya.aura.ui.library.tabs.ArtistsTab
 import com.kibriya.aura.ui.library.tabs.FoldersTab
 import com.kibriya.aura.ui.library.tabs.SongsTab
-import com.kibriya.aura.ui.theme.glassBackground
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
-    onSongClick: (Long) -> Unit,
-    onAlbumClick: (Long) -> Unit,
-    onArtistClick: (String) -> Unit,
+    onSongClick: (Song) -> Unit = {},
+    onAlbumClick: (Long) -> Unit = {},
+    onArtistClick: (String) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val isScanning by viewModel.isScanning.collectAsState()
@@ -36,10 +34,8 @@ fun LibraryScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Your Library") },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
+                    title = { Text("Your Library", color = Color.White) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
                 if (isScanning) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -51,12 +47,8 @@ fun LibraryScreen(
                     tabs.forEachIndexed { index, title ->
                         Tab(
                             selected = pagerState.currentPage == index,
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                            text = { Text(title) }
+                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
+                            text = { Text(title, color = Color.White) }
                         )
                     }
                 }
@@ -66,9 +58,7 @@ fun LibraryScreen(
     ) { innerPadding ->
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
         ) { page ->
             when (page) {
                 0 -> SongsTab(viewModel = viewModel, onSongClick = onSongClick)
