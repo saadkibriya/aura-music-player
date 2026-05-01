@@ -1,17 +1,5 @@
 // MIT License
 // Copyright (c) 2025 Md Golam Kibriya
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-
 package com.kibriya.aura.ui.metadata
 
 import android.net.Uri
@@ -56,7 +44,7 @@ fun MetadataEditorScreen(
     val saveState by viewModel.saveState.collectAsState()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        ActivityResultContracts.GetContent()
     ) { uri: Uri? -> uri?.let { viewModel.updateArtUri(it.toString()) } }
 
     LaunchedEffect(saveState) {
@@ -74,9 +62,7 @@ fun MetadataEditorScreen(
                 .padding(horizontal = 20.dp)
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { navController.popBackStack() }) {
@@ -146,11 +132,11 @@ fun MetadataEditorScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    MetaTextField(label = "Title",  value = title,  onValueChange = viewModel::updateTitle)
-                    MetaTextField(label = "Artist", value = artist, onValueChange = viewModel::updateArtist)
-                    MetaTextField(label = "Album",  value = album,  onValueChange = viewModel::updateAlbum)
-                    MetaTextField(label = "Year",   value = year,   onValueChange = viewModel::updateYear)
-                    MetaTextField(label = "Genre",  value = genre,  onValueChange = viewModel::updateGenre)
+                    MetaTextField("Title",  title,  viewModel::updateTitle)
+                    MetaTextField("Artist", artist, viewModel::updateArtist)
+                    MetaTextField("Album",  album,  viewModel::updateAlbum)
+                    MetaTextField("Year",   year,   viewModel::updateYear)
+                    MetaTextField("Genre",  genre,  viewModel::updateGenre)
                 }
             }
 
@@ -190,12 +176,7 @@ fun MetadataEditorScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(
-                            Icons.Default.Save,
-                            contentDescription = null,
-                            tint = Color(0xFF8B5CF6),
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Icon(Icons.Default.Save, null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Save", color = Color(0xFF8B5CF6), fontWeight = FontWeight.SemiBold)
                     }
@@ -207,11 +188,7 @@ fun MetadataEditorScreen(
 }
 
 @Composable
-private fun MetaTextField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
+private fun MetaTextField(label: String, value: String, onValueChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -220,13 +197,13 @@ private fun MetaTextField(
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color(0xFF8B5CF6),
+            focusedBorderColor   = Color(0xFF8B5CF6),
             unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            focusedLabelColor = Color(0xFF8B5CF6),
-            unfocusedLabelColor = Color.White.copy(alpha = 0.45f),
-            cursorColor = Color(0xFF8B5CF6)
+            focusedTextColor     = Color.White,
+            unfocusedTextColor   = Color.White,
+            focusedLabelColor    = Color(0xFF8B5CF6),
+            unfocusedLabelColor  = Color.White.copy(alpha = 0.45f),
+            cursorColor          = Color(0xFF8B5CF6)
         )
     )
 }
