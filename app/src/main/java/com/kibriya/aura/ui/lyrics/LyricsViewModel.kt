@@ -1,24 +1,16 @@
 // MIT License
-//
-// Copyright (c) 2024 Saad Kibriya
-//
+// Copyright (c) 2025 Md Golam Kibriya
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 package com.kibriya.aura.ui.lyrics
 
@@ -51,7 +43,8 @@ class LyricsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            playerRepository.currentSong().collect { song ->
+            playerRepository.playerState.collect { state ->
+                val song = state.currentSong
                 if (song != null) {
                     val parsed = LrcParser.parse(song.path)
                     _lyrics.value = parsed
@@ -65,10 +58,10 @@ class LyricsViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 delay(500)
-                val currentPosition = playerRepository.positionMs()
+                val currentPosition = playerRepository.playerState.value.positionMs
                 val lyricList = _lyrics.value
                 if (lyricList.isNotEmpty()) {
-                    val index = lyricList.indexOfLast { it.timeMs <= currentPosition }
+                    val index = lyricList.indexOfLast { it.timestampMs <= currentPosition }
                     if (index >= 0) _activeLyricIndex.value = index
                 }
             }
@@ -78,7 +71,7 @@ class LyricsViewModel @Inject constructor(
     fun seekToLine(index: Int) {
         viewModelScope.launch {
             val line = _lyrics.value.getOrNull(index) ?: return@launch
-            playerRepository.seekTo(line.timeMs)
+            playerRepository.seekTo(line.timestampMs)
         }
     }
 }
