@@ -35,9 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.kibriya.aura.ui.components.GlassComponents.auraGlow
-import com.kibriya.aura.ui.nowplaying.MeshGradientBackground
 import com.kibriya.aura.ui.nowplaying.NowPlayingViewModel
+import com.kibriya.aura.ui.nowplaying.components.MeshGradientBackground
+import com.kibriya.aura.ui.theme.glassBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,11 +50,11 @@ fun LyricsScreen(
     val activeIndex by lyricsViewModel.activeLyricIndex.collectAsState()
     val hasLyrics by lyricsViewModel.hasLyrics.collectAsState()
     val dominantColor by nowPlayingViewModel.dominantColor.collectAsState()
-    val songTitle by nowPlayingViewModel.currentSongTitle.collectAsState()
+    val playerState by nowPlayingViewModel.playerState.collectAsState()
+    val songTitle = playerState.currentSong?.title
 
     val listState = rememberLazyListState()
 
-    // Auto-scroll to active lyric line whenever it changes
     LaunchedEffect(activeIndex) {
         if (activeIndex >= 0 && hasLyrics) {
             listState.animateScrollToItem(
@@ -65,7 +65,6 @@ fun LyricsScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Fullscreen mesh gradient using dominant album art color
         MeshGradientBackground(dominantColor = dominantColor)
 
         Scaffold(
@@ -95,7 +94,6 @@ fun LyricsScreen(
             }
         ) { paddingValues ->
             if (!hasLyrics) {
-                // Empty state
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -136,8 +134,8 @@ fun LyricsScreen(
                             isActive = line.isActive,
                             positionRelativeToActive = when {
                                 index == activeIndex -> 0
-                                index < activeIndex -> -1  // above active
-                                else -> 1                  // below active
+                                index < activeIndex -> -1
+                                else -> 1
                             },
                             dominantColor = dominantColor,
                             onClick = { lyricsViewModel.seekToLine(index) }
@@ -153,7 +151,7 @@ fun LyricsScreen(
 private fun LyricLineItem(
     text: String,
     isActive: Boolean,
-    positionRelativeToActive: Int, // -1 above, 0 active, 1 below
+    positionRelativeToActive: Int,
     dominantColor: Color,
     onClick: () -> Unit
 ) {
@@ -164,21 +162,9 @@ private fun LyricLineItem(
     )
 
     val (textColor, fontSize, fontWeight) = when {
-        isActive -> Triple(
-            Color.White,
-            22.sp,
-            FontWeight.Bold
-        )
-        positionRelativeToActive < 0 -> Triple(  // lines above active
-            Color.White.copy(alpha = 0.4f),
-            16.sp,
-            FontWeight.Normal
-        )
-        else -> Triple(                            // lines below active
-            Color.White.copy(alpha = 0.6f),
-            16.sp,
-            FontWeight.Normal
-        )
+        isActive -> Triple(Color.White, 22.sp, FontWeight.Bold)
+        positionRelativeToActive < 0 -> Triple(Color.White.copy(alpha = 0.4f), 16.sp, FontWeight.Normal)
+        else -> Triple(Color.White.copy(alpha = 0.6f), 16.sp, FontWeight.Normal)
     }
 
     Box(
@@ -186,7 +172,10 @@ private fun LyricLineItem(
             .fillMaxWidth()
             .scale(scale)
             .then(
-                if (isActive) Modifier.auraGlow(color = dominantColor, radius = 16.dp)
+                if (isActive) Modifier.glassBackground(
+                    color = dominantColor.copy(alpha = 0.15f),
+                    cornerRadius = 12.dp
+                )
                 else Modifier
             )
             .clickable(onClick = onClick)
