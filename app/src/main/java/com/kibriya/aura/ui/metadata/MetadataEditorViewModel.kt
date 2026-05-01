@@ -1,24 +1,16 @@
 // MIT License
-//
-// Copyright (c) 2024 Saad Kibriya
-//
+// Copyright (c) 2025 Md Golam Kibriya
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 package com.kibriya.aura.ui.metadata
 
@@ -36,7 +28,7 @@ sealed class SaveState {
     object Idle : SaveState()
     object Saving : SaveState()
     object Success : SaveState()
-    data class Error(val msg: String) : SaveState()
+    data class Error(val message: String) : SaveState()
 }
 
 @HiltViewModel
@@ -64,10 +56,17 @@ class MetadataEditorViewModel @Inject constructor(
             artist.value = song.artist
             album.value = song.album
             year.value = song.year.toString()
-            genre.value = song.genre
+            genre.value = song.genre ?: ""
             albumArtUri.value = song.albumArtUri ?: ""
         }
     }
+
+    fun updateTitle(value: String) { title.value = value }
+    fun updateArtist(value: String) { artist.value = value }
+    fun updateAlbum(value: String) { album.value = value }
+    fun updateYear(value: String) { year.value = value }
+    fun updateGenre(value: String) { genre.value = value }
+    fun updateArtUri(value: String) { albumArtUri.value = value }
 
     fun saveMetadata() {
         viewModelScope.launch {
