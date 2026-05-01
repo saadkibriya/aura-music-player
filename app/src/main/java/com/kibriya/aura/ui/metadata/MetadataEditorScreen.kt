@@ -1,4 +1,17 @@
-// MIT License — Copyright (c) 2025 Md Golam Kibriya
+// MIT License
+// Copyright (c) 2025 Md Golam Kibriya
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
 package com.kibriya.aura.ui.metadata
 
 import android.net.Uri
@@ -16,15 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.kibriya.aura.ui.components.*
-import com.kibriya.aura.ui.theme.*
+import com.kibriya.aura.ui.nowplaying.components.MeshGradientBackground
+import com.kibriya.aura.ui.theme.GlassCard
+import com.kibriya.aura.ui.theme.GlassPillButton
 
 @Composable
 fun MetadataEditorScreen(
@@ -39,10 +52,9 @@ fun MetadataEditorScreen(
     val album     by viewModel.album.collectAsState()
     val year      by viewModel.year.collectAsState()
     val genre     by viewModel.genre.collectAsState()
-    val artUri    by viewModel.artUri.collectAsState()
+    val artUri    by viewModel.albumArtUri.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
 
-    val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? -> uri?.let { viewModel.updateArtUri(it.toString()) } }
@@ -52,7 +64,7 @@ fun MetadataEditorScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        MeshGradientBackground()
+        MeshGradientBackground(dominantColor = Color(0xFF8B5CF6))
 
         Column(
             modifier = Modifier
@@ -61,7 +73,6 @@ fun MetadataEditorScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
-            // Top bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -75,7 +86,6 @@ fun MetadataEditorScreen(
                 Text("Edit Metadata", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
 
-            // Album art
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -88,7 +98,7 @@ fun MetadataEditorScreen(
                             .clickable { imagePickerLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (artUri != null) {
+                        if (artUri.isNotEmpty()) {
                             AsyncImage(
                                 model = artUri,
                                 contentDescription = "Album art",
@@ -99,20 +109,29 @@ fun MetadataEditorScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(AuraViolet.copy(alpha = 0.15f)),
+                                    .background(Color(0xFF8B5CF6).copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = AuraViolet, modifier = Modifier.size(48.dp))
+                                Icon(
+                                    Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    tint = Color(0xFF8B5CF6),
+                                    modifier = Modifier.size(48.dp)
+                                )
                             }
                         }
-                        // Tap overlay hint
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(Color.Black.copy(alpha = 0.3f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(28.dp))
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -122,9 +141,11 @@ fun MetadataEditorScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            // Editable fields
             GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                     MetaTextField(label = "Title",  value = title,  onValueChange = viewModel::updateTitle)
                     MetaTextField(label = "Artist", value = artist, onValueChange = viewModel::updateArtist)
                     MetaTextField(label = "Album",  value = album,  onValueChange = viewModel::updateAlbum)
@@ -135,7 +156,6 @@ fun MetadataEditorScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            // Error state
             if (saveState is SaveState.Error) {
                 Text(
                     text = "Save failed: ${(saveState as SaveState.Error).message}",
@@ -145,7 +165,6 @@ fun MetadataEditorScreen(
                 )
             }
 
-            // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -161,15 +180,24 @@ fun MetadataEditorScreen(
                 GlassPillButton(
                     onClick = { viewModel.saveMetadata() },
                     modifier = Modifier.weight(1f).height(52.dp),
-                    glowColor = AuraViolet,
+                    glowColor = Color(0xFF8B5CF6),
                     enabled = saveState !is SaveState.Saving
                 ) {
                     if (saveState is SaveState.Saving) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = AuraViolet, strokeWidth = 2.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color(0xFF8B5CF6),
+                            strokeWidth = 2.dp
+                        )
                     } else {
-                        Icon(Icons.Default.Save, contentDescription = null, tint = AuraViolet, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.Save,
+                            contentDescription = null,
+                            tint = Color(0xFF8B5CF6),
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(Modifier.width(8.dp))
-                        Text("Save", color = AuraViolet, fontWeight = FontWeight.SemiBold)
+                        Text("Save", color = Color(0xFF8B5CF6), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -192,13 +220,13 @@ private fun MetaTextField(
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AuraViolet,
+            focusedBorderColor = Color(0xFF8B5CF6),
             unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
-            focusedLabelColor = AuraViolet,
+            focusedLabelColor = Color(0xFF8B5CF6),
             unfocusedLabelColor = Color.White.copy(alpha = 0.45f),
-            cursorColor = AuraViolet
+            cursorColor = Color(0xFF8B5CF6)
         )
     )
 }
