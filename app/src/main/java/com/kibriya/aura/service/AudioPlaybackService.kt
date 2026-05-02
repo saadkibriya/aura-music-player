@@ -1,7 +1,5 @@
-/*
- * MIT License
- * Copyright (c) 2024 Md Golam Kibriya
- */
+// MIT License
+// Copyright (c) 2025 Md Golam Kibriya
 package com.kibriya.aura.service
 
 import android.app.NotificationChannel
@@ -46,16 +44,13 @@ class AudioPlaybackService : MediaSessionService() {
         createNotificationChannel()
 
         player = ExoPlayer.Builder(this).build()
-
         mediaSession = MediaSession.Builder(this, player).build()
 
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 super.onMediaItemTransition(mediaItem, reason)
                 mediaItem?.mediaId?.toLongOrNull()?.let { songId ->
-                    serviceScope.launch {
-                        songRepository.updatePlayCount(songId)
-                    }
+                    serviceScope.launch { songRepository.updatePlayCount(songId) }
                 }
                 updateNotification(mediaItem)
             }
@@ -71,9 +66,7 @@ class AudioPlaybackService : MediaSessionService() {
 
     private fun observePreferences() {
         serviceScope.launch {
-            userPreferences.crossfadeDuration.collectLatest { _ ->
-                // crossfade duration handled at playlist/transition level
-            }
+            userPreferences.crossfadeDuration.collectLatest { _ -> }
         }
     }
 
@@ -81,7 +74,7 @@ class AudioPlaybackService : MediaSessionService() {
         val mediaItems = songs.map { song ->
             MediaItem.Builder()
                 .setMediaId(song.id.toString())
-                .setUri(song.filePath)
+                .setUri(song.uri)
                 .build()
         }
         player.setMediaItems(mediaItems, startIndex, 0L)
@@ -110,15 +103,12 @@ class AudioPlaybackService : MediaSessionService() {
             NOTIFICATION_CHANNEL_ID,
             "Aura Music Playback",
             NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Music playback controls"
-        }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        ).apply { description = "Music playback controls" }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
     private fun updateNotification(mediaItem: MediaItem?) {
-        val title = mediaItem?.mediaMetadata?.title?.toString() ?: "Aura Music"
+        val title  = mediaItem?.mediaMetadata?.title?.toString() ?: "Aura Music"
         val artist = mediaItem?.mediaMetadata?.artist?.toString() ?: ""
 
         val launchIntent = packageManager
@@ -126,9 +116,7 @@ class AudioPlaybackService : MediaSessionService() {
             ?.apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP }
 
         val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            launchIntent,
+            this, 0, launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -158,9 +146,7 @@ class AudioPlaybackService : MediaSessionService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val player = mediaSession?.player
-        if (player != null && (!player.playWhenReady || player.mediaItemCount == 0)) {
-            stopSelf()
-        }
+        val p = mediaSession?.player
+        if (p != null && (!p.playWhenReady || p.mediaItemCount == 0)) stopSelf()
     }
 }
