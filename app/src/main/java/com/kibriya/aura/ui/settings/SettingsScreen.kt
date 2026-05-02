@@ -1,10 +1,10 @@
-// MIT License — Copyright (c) 2025 Md Golam Kibriya
+// MIT License
+// Copyright (c) 2025 Md Golam Kibriya
 package com.kibriya.aura.ui.settings
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,21 +20,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kibriya.aura.BuildConfig
-import com.kibriya.aura.ui.components.*
-import com.kibriya.aura.ui.theme.*
+import com.kibriya.aura.ui.nowplaying.components.MeshGradientBackground
+import com.kibriya.aura.ui.theme.AuraAmber
+import com.kibriya.aura.ui.theme.AuraViolet
+import com.kibriya.aura.ui.theme.GlassCard
+import com.kibriya.aura.ui.theme.GlassPillButton
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
-    val crossfadeDuration  by viewModel.crossfadeDuration.collectAsState()
-    val replayGainEnabled  by viewModel.replayGainEnabled.collectAsState()
-    val gaplessEnabled     by viewModel.gaplessEnabled.collectAsState()
-    val sleepTimerMinutes  by viewModel.sleepTimerMinutes.collectAsState()
-    val sleepFadeOut       by viewModel.sleepFadeOut.collectAsState()
-    val accentColor        by viewModel.accentColor.collectAsState()
-    val uriHandler         = LocalUriHandler.current
+    val crossfadeDuration by viewModel.crossfadeDuration.collectAsState()
+    val replayGainEnabled by viewModel.replayGainEnabled.collectAsState()
+    val gaplessEnabled    by viewModel.gaplessEnabled.collectAsState()
+    val sleepTimerMs      by viewModel.sleepTimerMs.collectAsState()
+    val accentColor       by viewModel.accentColor.collectAsState()
+    val uriHandler        = LocalUriHandler.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        MeshGradientBackground()
+        MeshGradientBackground(dominantColor = Color(0xFF8B5CF6))
 
         Column(
             modifier = Modifier
@@ -51,21 +53,21 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 modifier = Modifier.padding(vertical = 20.dp)
             )
 
-            // ── Playback ──────────────────────────────────────
+            // Playback
             SettingsSection(title = "Playback", icon = Icons.Default.Tune) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Crossfade slider
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Crossfade", color = Color.White, fontSize = 14.sp)
-                            Text("${crossfadeDuration}s", color = AuraViolet, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("${crossfadeDuration}s", color = AuraViolet, fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold)
                         }
                         Slider(
                             value = crossfadeDuration.toFloat(),
-                            onValueChange = { viewModel.setCrossfadeDuration(it.toInt()) },
+                            onValueChange = { viewModel.setCrossfade(it.toInt()) },
                             valueRange = 0f..10f,
                             steps = 9,
                             colors = SliderDefaults.colors(
@@ -75,22 +77,23 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                             )
                         )
                     }
-                    SettingsToggleRow("ReplayGain", replayGainEnabled) { viewModel.setReplayGainEnabled(it) }
-                    SettingsToggleRow("Gapless Playback", gaplessEnabled) { viewModel.setGaplessEnabled(it) }
+                    SettingsToggleRow("ReplayGain", replayGainEnabled) { viewModel.toggleReplayGain() }
+                    SettingsToggleRow("Gapless Playback", gaplessEnabled) { viewModel.toggleGapless() }
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Sleep Timer ───────────────────────────────────
+            // Sleep Timer
             SettingsSection(title = "Sleep Timer", icon = Icons.Default.Bedtime) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Duration", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(15, 30, 45, 60).forEach { minutes ->
-                            val selected = sleepTimerMinutes == minutes
+                            val ms = minutes * 60_000L
+                            val selected = sleepTimerMs == ms
                             GlassPillButton(
-                                onClick = { viewModel.setSleepTimerMinutes(minutes) },
+                                onClick = { viewModel.setSleepTimer(ms) },
                                 modifier = Modifier.height(36.dp),
                                 glowColor = if (selected) AuraViolet else Color.Transparent
                             ) {
@@ -103,23 +106,21 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                             }
                         }
                     }
-                    SettingsToggleRow("Fade out before sleep", sleepFadeOut) { viewModel.setSleepFadeOut(it) }
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Appearance ────────────────────────────────────
+            // Appearance
             SettingsSection(title = "Appearance", icon = Icons.Default.Palette) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Accent Color", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val accents = listOf(
+                        listOf(
                             "violet" to Color(0xFF8B5CF6),
                             "amber"  to Color(0xFFF59E0B),
                             "teal"   to Color(0xFF14B8A6)
-                        )
-                        accents.forEach { (key, color) ->
+                        ).forEach { (key, color) ->
                             val selected = accentColor == key
                             Box(
                                 modifier = Modifier
@@ -134,7 +135,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                     .clickable { viewModel.setAccentColor(key) },
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                if (selected) Icon(Icons.Default.Check, null,
+                                    tint = Color.White, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -143,31 +145,23 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Library ───────────────────────────────────────
+            // Library
             SettingsSection(title = "Library", icon = Icons.Default.LibraryMusic) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     GlassPillButton(
-                        onClick = { viewModel.rescanLibrary() },
+                        onClick = { viewModel.triggerRescan() },
                         modifier = Modifier.fillMaxWidth().height(46.dp)
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, tint = AuraViolet, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Refresh, null, tint = AuraViolet, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Rescan Library", color = AuraViolet, fontWeight = FontWeight.SemiBold)
-                    }
-                    GlassPillButton(
-                        onClick = { viewModel.clearCache() },
-                        modifier = Modifier.fillMaxWidth().height(46.dp)
-                    ) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Clear Cache", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // ── About ─────────────────────────────────────────
+            // About
             SettingsSection(title = "About", icon = Icons.Default.Info) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AboutRow("Version", BuildConfig.VERSION_NAME)
@@ -177,7 +171,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         onClick = { uriHandler.openUri("https://github.com/saadkibriya/aura-music-player") },
                         modifier = Modifier.fillMaxWidth().height(46.dp)
                     ) {
-                        Icon(Icons.Default.Code, contentDescription = null, tint = AuraViolet, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Code, null, tint = AuraViolet, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("View on GitHub", color = AuraViolet, fontWeight = FontWeight.SemiBold)
                     }
@@ -197,8 +191,11 @@ private fun SettingsSection(
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 14.dp)) {
-                Icon(icon, contentDescription = null, tint = AuraViolet, modifier = Modifier.size(18.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 14.dp)
+            ) {
+                Icon(icon, null, tint = AuraViolet, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
@@ -208,7 +205,11 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SettingsToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
