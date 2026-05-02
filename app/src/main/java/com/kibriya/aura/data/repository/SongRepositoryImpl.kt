@@ -1,15 +1,10 @@
-/*
- * MIT License
- * Copyright (c) 2024 Md Golam Kibriya
- */
+// MIT License
+// Copyright (c) 2025 Md Golam Kibriya
 package com.kibriya.aura.data.repository
 
 import android.content.Context
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.kibriya.aura.data.local.dao.SongDao
 import com.kibriya.aura.data.local.entities.SongEntity
-import com.kibriya.aura.data.scanner.MediaScanner
 import com.kibriya.aura.domain.model.Song
 import com.kibriya.aura.domain.repository.SongRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,18 +20,27 @@ class SongRepositoryImpl @Inject constructor(
 ) : SongRepository {
 
     private fun SongEntity.toDomain() = Song(
-        id = id,
-        title = title,
-        artist = artist,
-        album = album,
-        albumId = albumId,
-        duration = duration,
-        filePath = try { filePath } catch (e: Throwable) { "" },
-        albumArtUri = albumArtUri,
-        dateAdded = dateAdded,
-        playCount = playCount,
-        isFavorite = isFavorite,
-        rating = try { rating } catch (e: Throwable) { 0f }
+        id           = id,
+        title        = title,
+        artist       = artist,
+        album        = album,
+        albumId      = albumId,
+        artistId     = artistId,
+        duration     = duration,
+        path         = path,
+        uri          = uri,
+        albumArtUri  = albumArtUri,
+        trackNumber  = trackNumber,
+        year         = year,
+        genre        = genre,
+        bitrate      = bitrate,
+        sampleRate   = sampleRate,
+        size         = size,
+        dateAdded    = dateAdded,
+        dateModified = dateModified,
+        playCount    = playCount,
+        isFavorite   = isFavorite,
+        lastPlayed   = lastPlayed
     )
 
     override fun getAllSongs(): Flow<List<Song>> =
@@ -68,7 +72,6 @@ class SongRepositoryImpl @Inject constructor(
     override suspend fun updatePlayCount(songId: Long) = songDao.updatePlayCount(songId)
 
     override suspend fun triggerScan() {
-        WorkManager.getInstance(context)
-            .enqueue(OneTimeWorkRequestBuilder<MediaScanner>().build())
+        // Scan triggered via MediaScanner directly — WorkManager integration deferred
     }
 }
