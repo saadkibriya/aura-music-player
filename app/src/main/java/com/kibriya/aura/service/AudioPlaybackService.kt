@@ -12,7 +12,6 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import com.kibriya.aura.R
 import com.kibriya.aura.data.local.preferences.UserPreferences
 import com.kibriya.aura.domain.model.Song
 import com.kibriya.aura.domain.repository.SongRepository
@@ -77,8 +76,8 @@ class AudioPlaybackService : MediaSessionService() {
     }
 
     fun togglePlayPause() { if (player.isPlaying) player.pause() else player.play() }
-    fun skipToNext()     { if (player.hasNextMediaItem()) player.seekToNextMediaItem() }
-    fun skipToPrevious() { if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem() }
+    fun skipToNext()      { if (player.hasNextMediaItem()) player.seekToNextMediaItem() }
+    fun skipToPrevious()  { if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem() }
     fun seekTo(positionMs: Long) { player.seekTo(positionMs) }
 
     private fun createNotificationChannel() {
@@ -95,12 +94,14 @@ class AudioPlaybackService : MediaSessionService() {
         val pendingIntent = packageManager.getLaunchIntentForPackage(packageName)
             ?.apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP }
             .let { intent ->
-                PendingIntent.getActivity(this, 0, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                PendingIntent.getActivity(
+                    this, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
             }
 
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_music_note)
+            .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle(title)
             .setContentText(artist)
             .setContentIntent(pendingIntent)
