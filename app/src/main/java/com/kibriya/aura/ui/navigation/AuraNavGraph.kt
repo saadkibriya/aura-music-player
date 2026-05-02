@@ -18,15 +18,15 @@ import com.kibriya.aura.ui.nowplaying.NowPlayingScreen
 import com.kibriya.aura.ui.search.SearchScreen
 
 object AuraDestinations {
-    const val LIBRARY    = "library"
-    const val NOW_PLAYING = "now_playing"
+    const val LIBRARY       = "library"
+    const val NOW_PLAYING   = "now_playing"
     const val ALBUM_DETAIL  = "album_detail/{albumId}"
     const val ARTIST_DETAIL = "artist_detail/{artistId}"
-    const val SEARCH     = "search"
-    const val EQUALISER  = "equaliser"
+    const val SEARCH        = "search"
+    const val EQUALISER     = "equaliser"
 
-    fun albumDetail(albumId: Long)   = "album_detail/$albumId"
-    fun artistDetail(artistId: Long) = "artist_detail/$artistId"
+    fun albumDetail(albumId: Long)     = "album_detail/$albumId"
+    fun artistDetail(artistId: String) = "artist_detail/$artistId"
 }
 
 private val enterTransition = fadeIn(tween(300)) + scaleIn(tween(300), initialScale = 0.95f)
@@ -44,9 +44,9 @@ fun AuraNavGraph(navController: NavHostController) {
     ) {
         composable(AuraDestinations.LIBRARY) {
             LibraryScreen(
+                onSongClick   = { navController.navigate(AuraDestinations.NOW_PLAYING) },
                 onAlbumClick  = { albumId  -> navController.navigate(AuraDestinations.albumDetail(albumId)) },
-                onArtistClick = { artistId -> navController.navigate(AuraDestinations.artistDetail(artistId)) },
-                onSongClick   = { navController.navigate(AuraDestinations.NOW_PLAYING) }
+                onArtistClick = { artistId -> navController.navigate(AuraDestinations.artistDetail(artistId)) }
             )
         }
 
@@ -59,20 +59,20 @@ fun AuraNavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("albumId") { type = NavType.LongType })
         ) {
             LibraryScreen(
+                onSongClick   = { navController.navigate(AuraDestinations.NOW_PLAYING) },
                 onAlbumClick  = { id -> navController.navigate(AuraDestinations.albumDetail(id)) },
-                onArtistClick = { id -> navController.navigate(AuraDestinations.artistDetail(id)) },
-                onSongClick   = { navController.navigate(AuraDestinations.NOW_PLAYING) }
+                onArtistClick = { id -> navController.navigate(AuraDestinations.artistDetail(id)) }
             )
         }
 
         composable(
             route     = AuraDestinations.ARTIST_DETAIL,
-            arguments = listOf(navArgument("artistId") { type = NavType.LongType })
+            arguments = listOf(navArgument("artistId") { type = NavType.StringType })
         ) {
             LibraryScreen(
+                onSongClick   = { navController.navigate(AuraDestinations.NOW_PLAYING) },
                 onAlbumClick  = { id -> navController.navigate(AuraDestinations.albumDetail(id)) },
-                onArtistClick = { id -> navController.navigate(AuraDestinations.artistDetail(id)) },
-                onSongClick   = { navController.navigate(AuraDestinations.NOW_PLAYING) }
+                onArtistClick = { id -> navController.navigate(AuraDestinations.artistDetail(id)) }
             )
         }
 
@@ -85,8 +85,6 @@ fun AuraNavGraph(navController: NavHostController) {
             )
         }
 
-        composable(AuraDestinations.EQUALISER) {
-            // placeholder
-        }
+        composable(AuraDestinations.EQUALISER) { }
     }
 }
