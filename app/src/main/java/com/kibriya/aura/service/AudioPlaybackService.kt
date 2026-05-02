@@ -42,7 +42,6 @@ class AudioPlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-
         player = ExoPlayer.Builder(this).build()
         mediaSession = MediaSession.Builder(this, player).build()
 
@@ -54,17 +53,12 @@ class AudioPlaybackService : MediaSessionService() {
                 }
                 updateNotification(mediaItem)
             }
-
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 super.onIsPlayingChanged(isPlaying)
                 updateNotification(player.currentMediaItem)
             }
         })
 
-        observePreferences()
-    }
-
-    private fun observePreferences() {
         serviceScope.launch {
             userPreferences.crossfadeDuration.collectLatest { _ -> }
         }
@@ -82,27 +76,14 @@ class AudioPlaybackService : MediaSessionService() {
         player.play()
     }
 
-    fun togglePlayPause() {
-        if (player.isPlaying) player.pause() else player.play()
-    }
-
-    fun skipToNext() {
-        if (player.hasNextMediaItem()) player.seekToNextMediaItem()
-    }
-
-    fun skipToPrevious() {
-        if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem()
-    }
-
-    fun seekTo(positionMs: Long) {
-        player.seekTo(positionMs)
-    }
+    fun togglePlayPause() { if (player.isPlaying) player.pause() else player.play() }
+    fun skipToNext()     { if (player.hasNextMediaItem()) player.seekToNextMediaItem() }
+    fun skipToPrevious() { if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem() }
+    fun seekTo(positionMs: Long) { player.seekTo(positionMs) }
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            "Aura Music Playback",
-            NotificationManager.IMPORTANCE_LOW
+            NOTIFICATION_CHANNEL_ID, "Aura Music Playback", NotificationManager.IMPORTANCE_LOW
         ).apply { description = "Music playback controls" }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -111,14 +92,12 @@ class AudioPlaybackService : MediaSessionService() {
         val title  = mediaItem?.mediaMetadata?.title?.toString() ?: "Aura Music"
         val artist = mediaItem?.mediaMetadata?.artist?.toString() ?: ""
 
-        val launchIntent = packageManager
-            .getLaunchIntentForPackage(packageName)
+        val pendingIntent = packageManager.getLaunchIntentForPackage(packageName)
             ?.apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP }
-
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+            .let { intent ->
+                PendingIntent.getActivity(this, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            }
 
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_music_note)
@@ -136,11 +115,7 @@ class AudioPlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = null
 
     override fun onDestroy() {
-        mediaSession?.run {
-            player.release()
-            release()
-            mediaSession = null
-        }
+        mediaSession?.run { player.release(); release(); mediaSession = null }
         serviceScope.cancel()
         super.onDestroy()
     }
