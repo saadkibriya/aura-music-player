@@ -25,53 +25,51 @@ class SongRepositoryImpl @Inject constructor(
         artist       = artist,
         album        = album,
         albumId      = albumId,
-        artistId     = artistId,
+        artistId     = 0L,
         duration     = duration,
-        path         = path,
-        uri          = uri,
+        path         = filePath,
+        uri          = filePath,
         albumArtUri  = albumArtUri,
-        trackNumber  = trackNumber,
-        year         = year,
-        genre        = genre,
-        bitrate      = bitrate,
-        sampleRate   = sampleRate,
-        size         = size,
+        trackNumber  = 0,
+        year         = 0,
+        genre        = null,
+        bitrate      = 0,
+        sampleRate   = 0,
+        size         = 0L,
         dateAdded    = dateAdded,
-        dateModified = dateModified,
+        dateModified = 0L,
         playCount    = playCount,
         isFavorite   = isFavorite,
-        lastPlayed   = lastPlayed
+        lastPlayed   = 0L
     )
 
     override fun getAllSongs(): Flow<List<Song>> =
-        songDao.getAllSongs().map { list -> list.map { it.toDomain() } }
+        songDao.getAllSongs().map { it.map { e -> e.toDomain() } }
 
     override fun getAlbums(): Flow<List<Song>> =
-        songDao.getAllSongs().map { list -> list.distinctBy { it.albumId }.map { it.toDomain() } }
+        songDao.getAllSongs().map { it.distinctBy { e -> e.albumId }.map { e -> e.toDomain() } }
 
     override fun getArtists(): Flow<List<String>> =
-        songDao.getAllSongs().map { list -> list.map { it.artist }.distinct().sorted() }
+        songDao.getAllSongs().map { it.map { e -> e.artist }.distinct().sorted() }
 
     override fun getSongsByAlbum(albumId: Long): Flow<List<Song>> =
-        songDao.getSongsByAlbum(albumId).map { list -> list.map { it.toDomain() } }
+        songDao.getSongsByAlbum(albumId).map { it.map { e -> e.toDomain() } }
 
     override fun getSongsByArtist(artist: String): Flow<List<Song>> =
-        songDao.getSongsByArtist(artist).map { list -> list.map { it.toDomain() } }
+        songDao.getSongsByArtist(artist).map { it.map { e -> e.toDomain() } }
 
     override fun getMostPlayed(): Flow<List<Song>> =
-        songDao.getMostPlayed().map { list -> list.map { it.toDomain() } }
+        songDao.getMostPlayed().map { it.map { e -> e.toDomain() } }
 
     override fun getRecentlyAdded(): Flow<List<Song>> =
-        songDao.getRecentlyAdded().map { list -> list.map { it.toDomain() } }
+        songDao.getRecentlyAdded().map { it.map { e -> e.toDomain() } }
 
     override fun getFavorites(): Flow<List<Song>> =
-        songDao.getFavorites().map { list -> list.map { it.toDomain() } }
+        songDao.getFavorites().map { it.map { e -> e.toDomain() } }
 
     override suspend fun toggleFavorite(songId: Long) = songDao.toggleFavorite(songId)
 
     override suspend fun updatePlayCount(songId: Long) = songDao.updatePlayCount(songId)
 
-    override suspend fun triggerScan() {
-        // Scan triggered via MediaScanner directly — WorkManager integration deferred
-    }
+    override suspend fun triggerScan() { }
 }
