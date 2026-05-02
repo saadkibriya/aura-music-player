@@ -1,6 +1,5 @@
 // MIT License
 // Copyright (c) 2025 Md Golam Kibriya
-
 package com.kibriya.aura.ui.navigation
 
 import androidx.compose.animation.animateColorAsState
@@ -10,30 +9,18 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.kibriya.aura.ui.theme.AuraTheme
 import com.kibriya.aura.ui.theme.glassBackground
 
 data class BottomNavItem(
@@ -43,10 +30,10 @@ data class BottomNavItem(
 )
 
 val bottomNavItems = listOf(
-    BottomNavItem("Library", Icons.Rounded.LibraryMusic, AuraDestinations.LIBRARY),
-    BottomNavItem("Search", Icons.Rounded.Search, AuraDestinations.SEARCH),
-    BottomNavItem("Playlists", Icons.Rounded.QueueMusic, "playlists"),
-    BottomNavItem("Settings", Icons.Rounded.Tune, "settings")
+    BottomNavItem("Library",   Icons.Rounded.LibraryMusic, AuraDestinations.LIBRARY),
+    BottomNavItem("Search",    Icons.Rounded.Search,       AuraDestinations.SEARCH),
+    BottomNavItem("Playlists", Icons.Rounded.QueueMusic,   "playlists"),
+    BottomNavItem("Settings",  Icons.Rounded.Tune,         "settings")
 )
 
 @Composable
@@ -77,13 +64,9 @@ fun BottomNavBar(
                     animationSpec = spring(stiffness = Spring.StiffnessMedium),
                     label = "iconTint_${item.label}"
                 )
-
                 val pillWidth by animateDpAsState(
                     targetValue = if (isSelected) 56.dp else 48.dp,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
+                    animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
                     label = "pillWidth_${item.label}"
                 )
 
@@ -92,7 +75,7 @@ fun BottomNavBar(
                         .size(width = pillWidth, height = 44.dp)
                         .clip(RoundedCornerShape(50))
                         .background(
-                            color = if (isSelected) AuraTheme.colors.violet.copy(alpha = 0.35f)
+                            if (isSelected) Color(0xFF8B5CF6).copy(alpha = 0.35f)
                             else Color.Transparent
                         )
                         .clickable(
