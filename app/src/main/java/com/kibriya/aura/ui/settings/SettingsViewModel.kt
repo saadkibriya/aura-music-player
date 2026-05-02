@@ -1,25 +1,5 @@
 // MIT License
-//
-// Copyright (c) 2024 Saad Kibriya
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
+// Copyright (c) 2025 Md Golam Kibriya
 package com.kibriya.aura.ui.settings
 
 import androidx.lifecycle.ViewModel
@@ -55,63 +35,39 @@ class SettingsViewModel @Inject constructor(
     val accentColor: StateFlow<String> = _accentColor.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            userPreferences.crossfadeDuration.collect { _crossfadeDuration.value = it }
-        }
-        viewModelScope.launch {
-            userPreferences.replayGainEnabled.collect { _replayGainEnabled.value = it }
-        }
-        viewModelScope.launch {
-            userPreferences.gaplessEnabled.collect { _gaplessEnabled.value = it }
-        }
-        viewModelScope.launch {
-            userPreferences.sleepTimerMs.collect { _sleepTimerMs.value = it }
-        }
-        viewModelScope.launch {
-            userPreferences.accentColor.collect { _accentColor.value = it }
-        }
+        viewModelScope.launch { userPreferences.crossfadeDuration.collect  { _crossfadeDuration.value = it } }
+        viewModelScope.launch { userPreferences.replayGainEnabled.collect  { _replayGainEnabled.value = it } }
+        viewModelScope.launch { userPreferences.gaplessEnabled.collect     { _gaplessEnabled.value    = it } }
+        viewModelScope.launch { userPreferences.accentColor.collect        { _accentColor.value       = it } }
     }
 
     fun setCrossfade(s: Int) {
-        viewModelScope.launch {
-            _crossfadeDuration.value = s
-            userPreferences.setCrossfadeDuration(s)
-        }
+        viewModelScope.launch { _crossfadeDuration.value = s; userPreferences.setCrossfadeDuration(s) }
     }
 
     fun toggleReplayGain() {
         viewModelScope.launch {
-            val newValue = !_replayGainEnabled.value
-            _replayGainEnabled.value = newValue
-            userPreferences.setReplayGainEnabled(newValue)
+            val v = !_replayGainEnabled.value
+            _replayGainEnabled.value = v
+            userPreferences.setReplayGainEnabled(v)
         }
     }
 
     fun toggleGapless() {
         viewModelScope.launch {
-            val newValue = !_gaplessEnabled.value
-            _gaplessEnabled.value = newValue
-            userPreferences.setGaplessEnabled(newValue)
+            val v = !_gaplessEnabled.value
+            _gaplessEnabled.value = v
+            userPreferences.setGaplessEnabled(v)
         }
     }
 
-    fun setSleepTimer(ms: Long) {
-        viewModelScope.launch {
-            _sleepTimerMs.value = ms
-            userPreferences.setSleepTimerMs(ms)
-        }
-    }
+    fun setSleepTimer(ms: Long) { _sleepTimerMs.value = ms }
 
     fun setAccentColor(hex: String) {
-        viewModelScope.launch {
-            _accentColor.value = hex
-            userPreferences.setAccentColor(hex)
-        }
+        viewModelScope.launch { _accentColor.value = hex; userPreferences.setAccentColor(hex) }
     }
 
     fun triggerRescan() {
-        viewModelScope.launch {
-            songRepository.triggerScan()
-        }
+        viewModelScope.launch { songRepository.triggerScan() }
     }
 }
