@@ -1,8 +1,5 @@
-
-/*
- * MIT License
- * Copyright (c) 2024 Md Golam Kibriya
- */
+// MIT License
+// Copyright (c) 2025 Md Golam Kibriya
 package com.kibriya.aura.ui.library.tabs
 
 import androidx.compose.foundation.clickable
@@ -32,9 +29,7 @@ fun FoldersTab(
     var selectedFolder by remember { mutableStateOf<String?>(null) }
 
     val folderMap: Map<String, List<Song>> = remember(songs) {
-        songs.groupBy { song ->
-            song.filePath.substringBeforeLast("/")
-        }
+        songs.groupBy { song -> song.path.substringBeforeLast("/") }
     }
 
     if (selectedFolder == null) {
@@ -49,16 +44,13 @@ fun FoldersTab(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null,
-                        tint = Color(0xFFF59E0B),
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Icon(Icons.Default.Folder, contentDescription = null,
+                        tint = Color(0xFFF59E0B), modifier = Modifier.size(32.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(folderName, color = Color.White, style = MaterialTheme.typography.bodyLarge)
-                        Text("$songCount songs", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
+                        Text("$songCount songs", color = Color.White.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -75,7 +67,8 @@ fun FoldersTab(
             ) {
                 Text("← Back", color = Color(0xFF8B5CF6), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(8.dp))
-                Text(selectedFolder!!.substringAfterLast("/"), color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                Text(selectedFolder!!.substringAfterLast("/"), color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge)
             }
             LazyColumn {
                 items(folderSongs) { song ->
@@ -86,11 +79,14 @@ fun FoldersTab(
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.MusicNote, null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.MusicNote, null, tint = Color(0xFF8B5CF6),
+                            modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text(song.title, color = Color.White, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                            Text(song.artist, color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Text(song.title, color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                            Text(song.artist, color = Color.White.copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.labelSmall, maxLines = 1)
                         }
                     }
                 }
